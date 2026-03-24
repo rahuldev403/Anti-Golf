@@ -3,9 +3,10 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient as createSupabaseClient } from "../../utils/supabase/client";
 import WinnerVerificationAlert from "./components/WinnerVerificationAlert";
+import ActiveDrawStatus from "./components/ActiveDrawStatus";
 
 type ScoreRow = {
   id: string;
@@ -52,10 +53,15 @@ type WinnerAmountRow = {
   prize_amount: number;
 };
 
+type SystemSettingsRow = {
+  current_jackpot_rollover: number;
+};
+
 const todayIso = new Date().toISOString().slice(0, 10);
 
 export default function DashboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmittingScore, setIsSubmittingScore] = useState(false);
   const [isSavingContribution, setIsSavingContribution] = useState(false);
@@ -75,6 +81,8 @@ export default function DashboardPage() {
     null,
   );
   const [totalWinnings, setTotalWinnings] = useState<number>(0);
+  const [latestDraw, setLatestDraw] = useState<any>(null);
+  const [currentJackpot, setCurrentJackpot] = useState<number>(0);
 
   const [scoreInput, setScoreInput] = useState<string>("");
   const [dateInput, setDateInput] = useState<string>(todayIso);
@@ -82,6 +90,9 @@ export default function DashboardPage() {
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [checkoutToastMessage, setCheckoutToastMessage] = useState<
+    string | null
+  >(null);
 
   const supabase = useMemo(() => {
     try {
@@ -90,6 +101,32 @@ export default function DashboardPage() {
       return null;
     }
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get("checkout") !== "success") {
+      return;
+    }
+
+    setCheckoutToastMessage("Subscription activated successfully.");
+
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("checkout");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!checkoutToastMessage) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setCheckoutToastMessage(null);
+    }, 4500);
+
+    return () => window.clearTimeout(timer);
+  }, [checkoutToastMessage]);
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -125,6 +162,8 @@ export default function DashboardPage() {
           profileRes,
           winnerRes,
           winningsRes,
+          latestPublishedDrawRes,
+          jackpotRes,
         ] = await Promise.all([
           supabase
             .from("subscriptions")
@@ -156,6 +195,18 @@ export default function DashboardPage() {
             .from("winners")
             .select("prize_amount")
             .eq("user_id", user.id),
+          supabase
+            .from("draws")
+            .select("*")
+            .eq("status", "published")
+            .order("draw_date", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from("system_settings")
+            .select("current_jackpot_rollover")
+            .eq("id", 1)
+            .maybeSingle(),
         ]);
 
         if (subscriptionsRes.error) {
@@ -179,6 +230,16 @@ export default function DashboardPage() {
         if (winningsRes.error) {
           throw new Error(
             `Failed to load winnings: ${winningsRes.error.message}`,
+          );
+        }
+        if (latestPublishedDrawRes.error) {
+          throw new Error(
+            `Failed to load latest draw: ${latestPublishedDrawRes.error.message}`,
+          );
+        }
+        if (jackpotRes.error) {
+          throw new Error(
+            `Failed to load jackpot: ${jackpotRes.error.message}`,
           );
         }
 
@@ -220,6 +281,14 @@ export default function DashboardPage() {
           0,
         );
         setTotalWinnings(total);
+
+        setLatestDraw(latestPublishedDrawRes.data ?? null);
+        setCurrentJackpot(
+          Number(
+            (jackpotRes.data as SystemSettingsRow | null)
+              ?.current_jackpot_rollover ?? 0,
+          ),
+        );
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Failed to load dashboard.";
@@ -425,6 +494,9 @@ export default function DashboardPage() {
     subscription?.status === "active" ? "Active" : "Inactive";
   const isSubscriptionActive = subscription?.status === "active";
   const hasPendingWinner = pendingWinner?.payment_status === "pending";
+  const isLatestDrawWinner = Boolean(
+    latestDraw && pendingWinner && pendingWinner.draw_id === latestDraw.id,
+  );
 
   const handleSignOut = async () => {
     setErrorMessage(null);
@@ -455,6 +527,13 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 text-foreground">
+      {checkoutToastMessage ? (
+        <div className="fixed right-4 bottom-4 z-50 max-w-sm rounded-lg border border-chart-3/50 bg-card px-4 py-3 text-sm text-foreground shadow-xl">
+          <p className="font-semibold text-chart-3">Billing Success</p>
+          <p className="mt-1 text-muted-foreground">{checkoutToastMessage}</p>
+        </div>
+      ) : null}
+
       <WinnerVerificationAlert
         isVisible={Boolean(hasPendingWinner)}
         pendingPrizeAmount={pendingWinner?.prize_amount}
@@ -484,6 +563,47 @@ export default function DashboardPage() {
           </button>
         </div>
       </header>
+
+      <ActiveDrawStatus
+        isSubscribed={subscription?.status === "active"}
+        scoreCount={scores.length}
+        currentJackpot={currentJackpot}
+      />
+
+      <section className="rounded-xl border border-primary/30 bg-primary/10 p-6 shadow-sm">
+        {latestDraw ? (
+          <>
+            <h2 className="text-xl font-semibold">Latest Draw Results</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Draw Date: {new Date(latestDraw.draw_date).toLocaleDateString()}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Total Prize Pool: $
+              {Number(latestDraw.total_prize_pool ?? 0).toFixed(2)}
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {(latestDraw.winning_numbers ?? []).map(
+                (number: number, index: number) => (
+                  <span
+                    key={`${number}-${index}`}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground"
+                  >
+                    {number}
+                  </span>
+                ),
+              )}
+            </div>
+          </>
+        ) : (
+          <div>
+            <h2 className="text-xl font-semibold">Latest Draw Results</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Waiting for the next official draw to be published. Submit your
+              scores now!
+            </p>
+          </div>
+        )}
+      </section>
 
       {errorMessage ? (
         <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
@@ -617,32 +737,6 @@ export default function DashboardPage() {
           </motion.section>
 
           <motion.section
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.15 }}
-            className="rounded-xl border border-border/50 bg-card p-6 shadow-sm md:col-span-1"
-          >
-            <h3 className="text-lg font-semibold">Navigate</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Use dedicated pages to manage scores and charity contribution.
-            </p>
-            <div className="mt-4 space-y-2">
-              <Link
-                href="/dashboard/scores"
-                className="inline-flex w-full items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:brightness-110"
-              >
-                Go to Enter Scores
-              </Link>
-              <Link
-                href="/dashboard/charity"
-                className="inline-flex w-full items-center justify-center rounded-lg border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
-              >
-                Go to Charity Impact
-              </Link>
-            </div>
-          </motion.section>
-
-          <motion.section
             id="settings"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -651,16 +745,16 @@ export default function DashboardPage() {
           >
             <h3 className="text-lg font-semibold">Payout Center</h3>
 
-            {hasPendingWinner ? (
-              <div className="mt-3 space-y-3 text-sm text-muted-foreground">
-                <p>
+            {latestDraw && isLatestDrawWinner ? (
+              <div className="mt-3 space-y-3">
+                <p className="text-lg font-bold text-chart-2">
+                  🎉 Congratulations! You matched {pendingWinner?.match_type}{" "}
+                  numbers and won ${pendingWinner?.prize_amount}!
+                </p>
+                <p className="text-sm text-muted-foreground">
                   Verification is pending. Use the alert at the top of the
                   dashboard to submit your proof.
                 </p>
-                <div className="rounded-lg border border-accent/40 bg-accent/20 p-3 text-accent-foreground">
-                  Pending payout for {pendingWinner?.match_type} matches: $
-                  {pendingWinner?.prize_amount}
-                </div>
                 {pendingWinner?.proof_image_url ? (
                   <a
                     href={pendingWinner.proof_image_url}
@@ -672,9 +766,14 @@ export default function DashboardPage() {
                   </a>
                 ) : null}
               </div>
+            ) : latestDraw ? (
+              <p className="mt-3 text-sm text-muted-foreground">
+                You didn't have a winning match this round. Your next 5 rounds
+                could be the lucky ones!
+              </p>
             ) : (
               <p className="mt-3 text-sm text-muted-foreground">
-                No pending winnings right now.
+                No official draw has been published yet.
               </p>
             )}
           </motion.section>

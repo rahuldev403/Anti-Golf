@@ -75,6 +75,7 @@ export async function POST(request: Request) {
           quantity: 1,
         },
       ],
+      client_reference_id: user.id,
       success_url: `${siteUrl}/dashboard?checkout=success`,
       cancel_url: `${siteUrl}/dashboard/billing?checkout=cancelled`,
       customer_email: user.email ?? undefined,

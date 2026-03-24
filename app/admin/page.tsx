@@ -1,21 +1,20 @@
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient as createSupabaseClient } from "../../utils/supabase/client";
-
-type SectionKey = "users" | "draws" | "winners";
+import DrawHistoryTable from "./components/DrawHistoryTable";
+import UserManagementTable from "./components/UserManagementTable";
 
 type UserRow = {
   id: string;
-  role: "user" | "admin";
-  created_at: string;
-};
-
-type SubscriptionRow = {
-  user_id: string;
-  status: "active" | "inactive";
-  plan_type: "monthly" | "yearly";
+  role: string | null;
+  created_at: string | null;
+  selected_charity_id: string | null;
+  selected_charity_name: string | null;
+  charity_percentage: number | null;
+  subscription_status: "active" | "inactive" | string;
 };
 
 type ScoreRow = {
@@ -28,9 +27,11 @@ type ScoreRow = {
 type DrawRow = {
   id: string;
   draw_date: string;
-  status: "simulated" | "published";
+  status: "simulated" | "published" | string;
   winning_numbers: number[];
-  jackpot_amount: number;
+  total_prize_pool: number | null;
+  rollover_amount_generated: number | null;
+  jackpot_amount?: number | null;
 };
 
 type PendingWinner = {
@@ -39,44 +40,51 @@ type PendingWinner = {
   draw_id: string;
   match_type: number;
   prize_amount: number;
-  payment_status: "pending" | "paid";
+  payment_status: "pending" | "paid" | "verified";
   proof_image_url: string | null;
+};
+
+type DrawSimulationSummary = {
+  winning_numbers: number[];
+  total_pool: number;
+  winners_count: {
+    match_5: number;
+    match_4: number;
+    match_3: number;
+  };
+  tier_pools: {
+    match_5: number;
+    match_4: number;
+    match_3: number;
+  };
+  payouts_each: {
+    match_5: number;
+    match_4: number;
+    match_3: number;
+  };
+  rollover: {
+    previous: number;
+    generated: number;
+    next: number;
+  };
 };
 
 type DrawSimulationResult = {
   draw: DrawRow;
-  summary: {
-    active_subscribers: number;
-    total_prize_pool: number;
-    winners_count: {
-      match_5: number;
-      match_4: number;
-      match_3: number;
-    };
-    rollover: {
-      enabled: boolean;
-      amount: number;
-    };
-  };
+  summary: DrawSimulationSummary;
 };
-
-const sections: { key: SectionKey; label: string }[] = [
-  { key: "users", label: "User Management" },
-  { key: "draws", label: "Draw Management" },
-  { key: "winners", label: "Winner Verification" },
-];
 
 export default function AdminDashboardPage() {
   const router = useRouter();
 
-  const [activeSection, setActiveSection] = useState<SectionKey>("users");
+  const [activeTab, setActiveTab] = useState<"overview" | "users" | "draws">(
+    "overview",
+  );
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
   const [users, setUsers] = useState<UserRow[]>([]);
-  const [subscriptions, setSubscriptions] = useState<
-    Map<string, SubscriptionRow>
-  >(new Map());
+  const [draws, setDraws] = useState<DrawRow[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedUserScores, setSelectedUserScores] = useState<ScoreRow[]>([]);
   const [loadingScoresForUser, setLoadingScoresForUser] = useState<
@@ -127,45 +135,35 @@ export default function AdminDashboardPage() {
     return session.access_token;
   };
 
-  const loadUsersAndSubscriptions = async () => {
-    if (!supabase) {
-      return;
-    }
+  const loadDashboardData = async (token: string) => {
+    const response = await fetch("/api/admin/fetch-dashboard-data", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
-    const [usersRes, subscriptionsRes] = await Promise.all([
-      supabase
-        .from("users")
-        .select("id, role, created_at")
-        .order("created_at", { ascending: false }),
-      supabase.from("subscriptions").select("user_id, status, plan_type"),
-    ]);
+    const payload = (await response.json()) as {
+      success?: boolean;
+      error?: string;
+      details?: string;
+      users?: UserRow[];
+      draws?: DrawRow[];
+    };
 
-    if (usersRes.error) {
-      throw new Error(`Failed to load users: ${usersRes.error.message}`);
-    }
-
-    if (subscriptionsRes.error) {
+    if (!response.ok || !payload.success) {
+      const details = payload.details ? ` (${payload.details})` : "";
       throw new Error(
-        `Failed to load subscriptions: ${subscriptionsRes.error.message}`,
+        (payload.error ?? "Failed to load dashboard data.") + details,
       );
     }
 
-    const allUsers = (usersRes.data ?? []) as UserRow[];
-    setUsers(allUsers);
+    const usersData = payload.users ?? [];
+    const drawsData = payload.draws ?? [];
 
-    const latestSubscriptionByUser = new Map<string, SubscriptionRow>();
-    for (const row of subscriptionsRes.data ?? []) {
-      const subscription = row as SubscriptionRow;
-      const existing = latestSubscriptionByUser.get(subscription.user_id);
-
-      if (
-        !existing ||
-        (existing.status !== "active" && subscription.status === "active")
-      ) {
-        latestSubscriptionByUser.set(subscription.user_id, subscription);
-      }
-    }
-    setSubscriptions(latestSubscriptionByUser);
+    setUsers(usersData);
+    setDraws(drawsData);
+    setLatestDraw(drawsData[0] ?? null);
   };
 
   const loadPendingWinners = async () => {
@@ -186,25 +184,6 @@ export default function AdminDashboardPage() {
     }
 
     setPendingWinners((data ?? []) as PendingWinner[]);
-  };
-
-  const loadLatestDraw = async () => {
-    if (!supabase) {
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("draws")
-      .select("id, draw_date, status, winning_numbers, jackpot_amount")
-      .order("draw_date", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (error) {
-      throw new Error(`Failed to load latest draw: ${error.message}`);
-    }
-
-    setLatestDraw((data as DrawRow | null) ?? null);
   };
 
   useEffect(() => {
@@ -255,11 +234,12 @@ export default function AdminDashboardPage() {
 
         setIsAdmin(true);
 
-        await Promise.all([
-          loadUsersAndSubscriptions(),
-          loadPendingWinners(),
-          loadLatestDraw(),
-        ]);
+        const token = await getAccessToken();
+        if (!token) {
+          throw new Error("Admin session expired. Please sign in again.");
+        }
+
+        await Promise.all([loadDashboardData(token), loadPendingWinners()]);
       } catch (error) {
         const message =
           error instanceof Error
@@ -273,6 +253,119 @@ export default function AdminDashboardPage() {
 
     void bootstrap();
   }, [router, supabase]);
+
+  const handleRunDraw = async () => {
+    clearMessages();
+
+    const token = await getAccessToken();
+    if (!token) {
+      setErrorMessage("Admin session expired. Please sign in again.");
+      return;
+    }
+
+    try {
+      setIsRunningDraw(true);
+
+      const response = await fetch("/api/admin/draw/simulate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const payload = (await response.json()) as {
+        success?: boolean;
+        error?: string;
+        details?: string;
+        draw?: DrawRow;
+        summary?: DrawSimulationSummary;
+      };
+
+      if (
+        !response.ok ||
+        !payload.success ||
+        !payload.draw ||
+        !payload.summary
+      ) {
+        const details = payload.details ? ` (${payload.details})` : "";
+        throw new Error(
+          (payload.error ?? "Failed to run draw simulation.") + details,
+        );
+      }
+
+      setDrawSimulationResult({
+        draw: payload.draw,
+        summary: payload.summary,
+      });
+      setLatestDraw(payload.draw);
+      setSuccessMessage("Draw simulation completed successfully.");
+
+      await Promise.all([loadPendingWinners(), loadDashboardData(token)]);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to run draw.";
+      setErrorMessage(message);
+    } finally {
+      setIsRunningDraw(false);
+    }
+  };
+
+  const handlePublishDraw = async () => {
+    clearMessages();
+
+    if (
+      !window.confirm(
+        "Publish this simulation as official monthly results? This action updates jackpot rollover for next month.",
+      )
+    ) {
+      return;
+    }
+
+    const token = await getAccessToken();
+    if (!token) {
+      setErrorMessage("Admin session expired. Please sign in again.");
+      return;
+    }
+
+    try {
+      setIsPublishingDraw(true);
+
+      const response = await fetch("/api/admin/draw/publish", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const payload = (await response.json()) as {
+        success?: boolean;
+        error?: string;
+        details?: string;
+        draw?: DrawRow;
+        message?: string;
+        rollover_applied_for_next_month?: number;
+      };
+
+      if (!response.ok || !payload.success || !payload.draw) {
+        const details = payload.details ? ` (${payload.details})` : "";
+        throw new Error((payload.error ?? "Failed to publish draw.") + details);
+      }
+
+      setLatestDraw(payload.draw);
+      setDrawSimulationResult((previous: DrawSimulationResult | null) =>
+        previous ? { ...previous, draw: payload.draw as DrawRow } : previous,
+      );
+      setSuccessMessage(payload.message ?? "Draw published successfully.");
+      await loadDashboardData(token);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to publish draw.";
+      setErrorMessage(message);
+    } finally {
+      setIsPublishingDraw(false);
+    }
+  };
 
   const handleViewScores = async (userId: string) => {
     clearMessages();
@@ -305,112 +398,6 @@ export default function AdminDashboardPage() {
       setErrorMessage(message);
     } finally {
       setLoadingScoresForUser(null);
-    }
-  };
-
-  const handleRunDraw = async () => {
-    clearMessages();
-
-    const token = await getAccessToken();
-    if (!token) {
-      setErrorMessage("Admin session expired. Please sign in again.");
-      return;
-    }
-
-    try {
-      setIsRunningDraw(true);
-
-      const response = await fetch("/api/admin/run-draw", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const payload = (await response.json()) as {
-        success?: boolean;
-        error?: string;
-        details?: string;
-        draw?: DrawRow;
-        summary?: DrawSimulationResult["summary"];
-      };
-
-      if (
-        !response.ok ||
-        !payload.success ||
-        !payload.draw ||
-        !payload.summary
-      ) {
-        const details = payload.details ? ` (${payload.details})` : "";
-        throw new Error(
-          (payload.error ?? "Failed to run draw simulation.") + details,
-        );
-      }
-
-      setDrawSimulationResult({
-        draw: payload.draw,
-        summary: payload.summary,
-      });
-      setLatestDraw(payload.draw);
-      setSuccessMessage("Draw simulation completed successfully.");
-      await loadPendingWinners();
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to run draw.";
-      setErrorMessage(message);
-    } finally {
-      setIsRunningDraw(false);
-    }
-  };
-
-  const handlePublishDraw = async () => {
-    clearMessages();
-
-    const token = await getAccessToken();
-    if (!token) {
-      setErrorMessage("Admin session expired. Please sign in again.");
-      return;
-    }
-
-    try {
-      setIsPublishingDraw(true);
-
-      const response = await fetch("/api/admin/publish-draw", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          draw_id: latestDraw?.id,
-        }),
-      });
-
-      const payload = (await response.json()) as {
-        success?: boolean;
-        error?: string;
-        details?: string;
-        draw?: DrawRow;
-        message?: string;
-      };
-
-      if (!response.ok || !payload.success || !payload.draw) {
-        const details = payload.details ? ` (${payload.details})` : "";
-        throw new Error((payload.error ?? "Failed to publish draw.") + details);
-      }
-
-      setLatestDraw(payload.draw);
-      setDrawSimulationResult((previous: DrawSimulationResult | null) =>
-        previous ? { ...previous, draw: payload.draw as DrawRow } : previous,
-      );
-      setSuccessMessage(payload.message ?? "Draw published successfully.");
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to publish draw.";
-      setErrorMessage(message);
-    } finally {
-      setIsPublishingDraw(false);
     }
   };
 
@@ -490,115 +477,346 @@ export default function AdminDashboardPage() {
 
   return (
     <main className="min-h-screen bg-background p-4 text-foreground sm:p-6">
-      <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-6 lg:grid-cols-[260px_1fr]">
-        <aside className="rounded-2xl border border-border bg-card p-4">
-          <h1 className="px-2 text-lg font-semibold">Admin Panel</h1>
-          <nav className="mt-4 space-y-2">
-            {sections.map((section: { key: SectionKey; label: string }) => (
-              <button
-                key={section.key}
-                type="button"
-                onClick={() => setActiveSection(section.key)}
-                className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
-                  activeSection === section.key
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted/70 text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                {section.label}
-              </button>
-            ))}
-          </nav>
-        </aside>
+      <div className="mx-auto w-full max-w-7xl space-y-4">
+        <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h1 className="text-xl font-semibold">Admin Panel</h1>
 
-        <section className="space-y-4">
-          {errorMessage ? (
-            <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-              {errorMessage}
-            </div>
-          ) : null}
+            <nav className="inline-flex flex-wrap gap-2 rounded-full border border-border/60 bg-muted/50 p-1">
+              {[
+                { key: "overview" as const, label: "Control Center" },
+                { key: "users" as const, label: "Manage Users" },
+                { key: "draws" as const, label: "Draw History" },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                    activeTab === tab.key
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
+          </div>
+        </section>
 
-          {successMessage ? (
-            <div className="rounded-xl border border-chart-3/40 bg-chart-3/15 p-4 text-sm text-chart-3">
-              {successMessage}
-            </div>
-          ) : null}
+        {errorMessage ? (
+          <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+            {errorMessage}
+          </div>
+        ) : null}
 
-          {activeSection === "users" ? (
-            <div className="rounded-2xl border border-border bg-card p-5">
-              <h2 className="text-xl font-semibold">User Management</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Manage users and inspect their latest scores.
-              </p>
+        {successMessage ? (
+          <div className="rounded-xl border border-chart-3/40 bg-chart-3/15 p-4 text-sm text-chart-3">
+            {successMessage}
+          </div>
+        ) : null}
 
-              <div className="mt-4 overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-left text-muted-foreground">
-                      <th className="px-3 py-2 font-medium">User ID</th>
-                      <th className="px-3 py-2 font-medium">Role</th>
-                      <th className="px-3 py-2 font-medium">Subscription</th>
-                      <th className="px-3 py-2 font-medium">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.map((user: UserRow) => {
-                      const subscription = subscriptions.get(user.id);
-                      const status = subscription?.status ?? "inactive";
+        <AnimatePresence mode="wait">
+          {activeTab === "overview" ? (
+            <motion.section
+              key="overview"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="space-y-4"
+            >
+              <div className="rounded-2xl border border-border bg-card p-5">
+                <h2 className="text-xl font-semibold">Run Simulation</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Run and publish monthly draw simulations.
+                </p>
 
-                      return (
-                        <tr key={user.id} className="border-b border-border/70">
-                          <td className="px-3 py-3 text-xs text-muted-foreground">
-                            {user.id}
-                          </td>
-                          <td className="px-3 py-3 capitalize text-muted-foreground">
-                            {user.role}
-                          </td>
-                          <td className="px-3 py-3 text-muted-foreground">
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={handleRunDraw}
+                    disabled={isRunningDraw}
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:brightness-110 disabled:opacity-60"
+                  >
+                    {isRunningDraw ? (
+                      <>
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground/40 border-t-primary-foreground" />
+                        Running Monthly Draw Simulation...
+                      </>
+                    ) : (
+                      "Run Monthly Draw Simulation"
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handlePublishDraw}
+                    disabled={
+                      isPublishingDraw ||
+                      !latestDraw ||
+                      latestDraw.status === "published"
+                    }
+                    className="rounded-lg bg-chart-3 px-4 py-2 text-sm font-semibold text-foreground hover:brightness-110 disabled:opacity-60"
+                  >
+                    {isPublishingDraw
+                      ? "Publishing Official Results..."
+                      : "Publish Official Results"}
+                  </button>
+                </div>
+
+                {latestDraw ? (
+                  <div className="mt-5 rounded-xl border border-border bg-background/70 p-4 text-sm">
+                    <p className="text-muted-foreground">
+                      Latest Draw ID: {latestDraw.id}
+                    </p>
+                    <p className="mt-1 text-muted-foreground">
+                      Status: {latestDraw.status}
+                    </p>
+                    <p className="mt-1 text-muted-foreground">
+                      Winning Numbers:{" "}
+                      {Array.isArray(latestDraw.winning_numbers)
+                        ? latestDraw.winning_numbers.join(", ")
+                        : "N/A"}
+                    </p>
+                    <p className="mt-1 text-muted-foreground">
+                      Total Prize Pool: ${latestDraw.total_prize_pool ?? 0}
+                    </p>
+                    <p className="mt-1 text-muted-foreground">
+                      Rollover Generated: $
+                      {latestDraw.rollover_amount_generated ?? 0}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mt-5 text-sm text-muted-foreground">
+                    No draw has been created yet.
+                  </p>
+                )}
+
+                {drawSimulationResult ? (
+                  <div className="mt-5 rounded-xl border border-primary/30 bg-linear-to-br from-primary/15 via-card to-accent/20 p-5 text-sm">
+                    <h3 className="text-base font-semibold text-foreground">
+                      Simulation Results Snapshot
+                    </h3>
+
+                    <div className="mt-4">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                        Winning Numbers
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {drawSimulationResult.summary.winning_numbers.map(
+                          (number) => (
                             <span
-                              className={`inline-flex rounded-full px-2 py-1 text-xs ${
-                                status === "active"
-                                  ? "bg-chart-3/15 text-chart-3"
-                                  : "bg-destructive/15 text-destructive"
-                              }`}
+                              key={number}
+                              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-primary/50 bg-primary/20 font-bold text-primary"
                             >
-                              {status}
+                              {number}
                             </span>
-                          </td>
-                          <td className="px-3 py-3">
-                            <button
-                              type="button"
-                              onClick={() => handleViewScores(user.id)}
-                              disabled={loadingScoresForUser === user.id}
-                              className="rounded-md bg-secondary px-3 py-1.5 text-xs font-semibold text-secondary-foreground hover:brightness-110 disabled:opacity-60"
-                            >
-                              {loadingScoresForUser === user.id
-                                ? "Loading..."
-                                : "View Scores"}
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                          ),
+                        )}
+                      </div>
+                    </div>
+
+                    <p className="mt-4 text-lg font-semibold text-foreground">
+                      Total Prize Pool Generated: $
+                      {drawSimulationResult.summary.total_pool}
+                    </p>
+
+                    <div className="mt-4 overflow-x-auto rounded-lg border border-border/60 bg-background/70">
+                      <table className="min-w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-border text-left text-muted-foreground">
+                            <th className="px-3 py-2 font-medium">Tier</th>
+                            <th className="px-3 py-2 font-medium">Winners</th>
+                            <th className="px-3 py-2 font-medium">
+                              Payout / User
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-b border-border/60">
+                            <td className="px-3 py-2">5-Match</td>
+                            <td className="px-3 py-2">
+                              {
+                                drawSimulationResult.summary.winners_count
+                                  .match_5
+                              }
+                            </td>
+                            <td className="px-3 py-2">
+                              $
+                              {
+                                drawSimulationResult.summary.payouts_each
+                                  .match_5
+                              }
+                            </td>
+                          </tr>
+                          <tr className="border-b border-border/60">
+                            <td className="px-3 py-2">4-Match</td>
+                            <td className="px-3 py-2">
+                              {
+                                drawSimulationResult.summary.winners_count
+                                  .match_4
+                              }
+                            </td>
+                            <td className="px-3 py-2">
+                              $
+                              {
+                                drawSimulationResult.summary.payouts_each
+                                  .match_4
+                              }
+                            </td>
+                          </tr>
+                          <tr>
+                            <td className="px-3 py-2">3-Match</td>
+                            <td className="px-3 py-2">
+                              {
+                                drawSimulationResult.summary.winners_count
+                                  .match_3
+                              }
+                            </td>
+                            <td className="px-3 py-2">
+                              $
+                              {
+                                drawSimulationResult.summary.payouts_each
+                                  .match_3
+                              }
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <p className="mt-4 font-medium text-foreground">
+                      Rollover Amount for Next Month: $
+                      {drawSimulationResult.summary.rollover.generated}
+                    </p>
+                  </div>
+                ) : null}
               </div>
 
+              <div className="rounded-2xl border border-border bg-card p-5">
+                <h2 className="text-xl font-semibold">Pending Verifications</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Review pending winners and validate uploaded proof images.
+                </p>
+
+                <div className="mt-4 overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-left text-muted-foreground">
+                        <th className="px-3 py-2 font-medium">Winner ID</th>
+                        <th className="px-3 py-2 font-medium">User</th>
+                        <th className="px-3 py-2 font-medium">Match</th>
+                        <th className="px-3 py-2 font-medium">Prize</th>
+                        <th className="px-3 py-2 font-medium">Proof</th>
+                        <th className="px-3 py-2 font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingWinners.map((winner: PendingWinner) => (
+                        <tr
+                          key={winner.id}
+                          className="border-b border-border/70 align-top"
+                        >
+                          <td className="px-3 py-3 text-xs text-muted-foreground">
+                            {winner.id}
+                          </td>
+                          <td className="px-3 py-3 text-xs text-muted-foreground">
+                            {winner.user_id}
+                          </td>
+                          <td className="px-3 py-3 text-muted-foreground">
+                            {winner.match_type}
+                          </td>
+                          <td className="px-3 py-3 text-muted-foreground">
+                            ${winner.prize_amount}
+                          </td>
+                          <td className="px-3 py-3">
+                            {winner.proof_image_url ? (
+                              <a
+                                href={winner.proof_image_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex text-primary hover:text-primary/80"
+                              >
+                                View Image
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground">
+                                Not uploaded
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-3">
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                disabled={processingWinnerId === winner.id}
+                                onClick={() =>
+                                  handleWinnerDecision(winner.id, "approve")
+                                }
+                                className="rounded-md bg-chart-3 px-3 py-1.5 text-xs font-semibold text-foreground hover:brightness-110 disabled:opacity-60"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                type="button"
+                                disabled={processingWinnerId === winner.id}
+                                onClick={() =>
+                                  handleWinnerDecision(winner.id, "reject")
+                                }
+                                className="rounded-md bg-destructive px-3 py-1.5 text-xs font-semibold text-foreground hover:brightness-110 disabled:opacity-60"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {pendingWinners.length === 0 ? (
+                  <p className="mt-4 text-sm text-muted-foreground">
+                    No pending winners to verify.
+                  </p>
+                ) : null}
+              </div>
+            </motion.section>
+          ) : null}
+
+          {activeTab === "users" ? (
+            <motion.section
+              key="users"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="space-y-4"
+            >
+              <UserManagementTable
+                users={users}
+                onViewScores={handleViewScores}
+                loadingScoresForUser={loadingScoresForUser}
+              />
+
               {selectedUserId ? (
-                <div className="mt-5 rounded-xl border border-border bg-background/70 p-4">
-                  <h3 className="text-sm font-medium text-muted-foreground">
+                <div className="rounded-2xl border border-border bg-card p-5">
+                  <h3 className="text-base font-semibold">
                     Latest 5 Scores for {selectedUserId}
                   </h3>
+
                   {selectedUserScores.length === 0 ? (
                     <p className="mt-2 text-sm text-muted-foreground">
-                      No scores found.
+                      No scores found for this user.
                     </p>
                   ) : (
                     <ul className="mt-3 space-y-2">
                       {selectedUserScores.map((score: ScoreRow) => (
                         <li
                           key={score.id}
-                          className="flex items-center justify-between rounded-lg border border-border bg-card/80 px-3 py-2 text-sm"
+                          className="flex items-center justify-between rounded-lg border border-border/60 bg-background/70 px-3 py-2 text-sm"
                         >
                           <span>Score: {score.score}</span>
                           <span className="text-muted-foreground">
@@ -610,186 +828,21 @@ export default function AdminDashboardPage() {
                   )}
                 </div>
               ) : null}
-            </div>
+            </motion.section>
           ) : null}
 
-          {activeSection === "draws" ? (
-            <div className="rounded-2xl border border-border bg-card p-5">
-              <h2 className="text-xl font-semibold">Draw Management</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Run and publish monthly draw simulations.
-              </p>
-
-              <div className="mt-4 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={handleRunDraw}
-                  disabled={isRunningDraw}
-                  className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:brightness-110 disabled:opacity-60"
-                >
-                  {isRunningDraw ? "Running Draw..." : "Run Draw"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handlePublishDraw}
-                  disabled={
-                    isPublishingDraw ||
-                    !latestDraw ||
-                    latestDraw.status === "published"
-                  }
-                  className="rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-secondary-foreground hover:brightness-110 disabled:opacity-60"
-                >
-                  {isPublishingDraw ? "Publishing..." : "Publish Draw"}
-                </button>
-              </div>
-
-              {latestDraw ? (
-                <div className="mt-5 rounded-xl border border-border bg-background/70 p-4 text-sm">
-                  <p className="text-muted-foreground">
-                    Latest Draw ID: {latestDraw.id}
-                  </p>
-                  <p className="mt-1 text-muted-foreground">
-                    Status: {latestDraw.status}
-                  </p>
-                  <p className="mt-1 text-muted-foreground">
-                    Winning Numbers:{" "}
-                    {Array.isArray(latestDraw.winning_numbers)
-                      ? latestDraw.winning_numbers.join(", ")
-                      : "N/A"}
-                  </p>
-                  <p className="mt-1 text-muted-foreground">
-                    Rollover/Jackpot Amount: ${latestDraw.jackpot_amount}
-                  </p>
-                </div>
-              ) : (
-                <p className="mt-5 text-sm text-muted-foreground">
-                  No draw has been created yet.
-                </p>
-              )}
-
-              {drawSimulationResult ? (
-                <div className="mt-5 rounded-xl border border-accent/40 bg-accent/20 p-4 text-sm">
-                  <h3 className="font-medium text-accent-foreground">
-                    Latest Simulation Results
-                  </h3>
-                  <p className="mt-2 text-accent-foreground">
-                    Active Subscribers:{" "}
-                    {drawSimulationResult.summary.active_subscribers}
-                  </p>
-                  <p className="mt-1 text-accent-foreground">
-                    Total Prize Pool: $
-                    {drawSimulationResult.summary.total_prize_pool}
-                  </p>
-                  <p className="mt-1 text-accent-foreground">
-                    Winners (5/4/3):{" "}
-                    {drawSimulationResult.summary.winners_count.match_5}/
-                    {drawSimulationResult.summary.winners_count.match_4}/
-                    {drawSimulationResult.summary.winners_count.match_3}
-                  </p>
-                  <p className="mt-1 text-accent-foreground">
-                    Rollover:{" "}
-                    {drawSimulationResult.summary.rollover.enabled
-                      ? "Yes"
-                      : "No"}{" "}
-                    (${drawSimulationResult.summary.rollover.amount})
-                  </p>
-                </div>
-              ) : null}
-            </div>
+          {activeTab === "draws" ? (
+            <motion.section
+              key="draws"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+            >
+              <DrawHistoryTable draws={draws} />
+            </motion.section>
           ) : null}
-
-          {activeSection === "winners" ? (
-            <div className="rounded-2xl border border-border bg-card p-5">
-              <h2 className="text-xl font-semibold">Winner Verification</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Review pending winners and validate uploaded proof images.
-              </p>
-
-              <div className="mt-4 overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-left text-muted-foreground">
-                      <th className="px-3 py-2 font-medium">Winner ID</th>
-                      <th className="px-3 py-2 font-medium">User</th>
-                      <th className="px-3 py-2 font-medium">Match</th>
-                      <th className="px-3 py-2 font-medium">Prize</th>
-                      <th className="px-3 py-2 font-medium">Proof</th>
-                      <th className="px-3 py-2 font-medium">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pendingWinners.map((winner: PendingWinner) => (
-                      <tr
-                        key={winner.id}
-                        className="border-b border-border/70 align-top"
-                      >
-                        <td className="px-3 py-3 text-xs text-muted-foreground">
-                          {winner.id}
-                        </td>
-                        <td className="px-3 py-3 text-xs text-muted-foreground">
-                          {winner.user_id}
-                        </td>
-                        <td className="px-3 py-3 text-muted-foreground">
-                          {winner.match_type}
-                        </td>
-                        <td className="px-3 py-3 text-muted-foreground">
-                          ${winner.prize_amount}
-                        </td>
-                        <td className="px-3 py-3">
-                          {winner.proof_image_url ? (
-                            <a
-                              href={winner.proof_image_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex text-primary hover:text-primary/80"
-                            >
-                              View Image
-                            </a>
-                          ) : (
-                            <span className="text-muted-foreground">
-                              Not uploaded
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-3 py-3">
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              disabled={processingWinnerId === winner.id}
-                              onClick={() =>
-                                handleWinnerDecision(winner.id, "approve")
-                              }
-                              className="rounded-md bg-chart-3 px-3 py-1.5 text-xs font-semibold text-foreground hover:brightness-110 disabled:opacity-60"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              type="button"
-                              disabled={processingWinnerId === winner.id}
-                              onClick={() =>
-                                handleWinnerDecision(winner.id, "reject")
-                              }
-                              className="rounded-md bg-destructive px-3 py-1.5 text-xs font-semibold text-foreground hover:brightness-110 disabled:opacity-60"
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {pendingWinners.length === 0 ? (
-                <p className="mt-4 text-sm text-muted-foreground">
-                  No pending winners to verify.
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-        </section>
+        </AnimatePresence>
       </div>
     </main>
   );

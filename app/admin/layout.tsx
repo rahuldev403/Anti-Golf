@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ReactNode } from "react";
-import { LayoutDashboard, Trophy, Users } from "lucide-react";
+import { LayoutDashboard } from "lucide-react";
+import ThemeToggle from "../components/ThemeToggle";
 
 type AdminLayoutProps = {
   children: ReactNode;
@@ -15,12 +16,6 @@ const navItems = [
     href: "/admin",
     icon: <LayoutDashboard className="h-4 w-4" />,
   },
-  {
-    label: "Draws",
-    href: "/admin#draws",
-    icon: <Trophy className="h-4 w-4" />,
-  },
-  { label: "Users", href: "/admin#users", icon: <Users className="h-4 w-4" /> },
 ];
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
@@ -56,6 +51,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             );
           })}
         </nav>
+
+        <div className="border-t border-sidebar-border p-3">
+          <ThemeToggle className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent/60 px-3 py-2 text-sm font-medium text-sidebar-foreground transition hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />
+        </div>
       </aside>
 
       <main className="p-4 md:p-6">{children}</main>

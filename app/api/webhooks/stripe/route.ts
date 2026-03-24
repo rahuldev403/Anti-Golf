@@ -93,7 +93,11 @@ export async function POST(request: Request) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
-    const userId = session.metadata?.user_id;
+    const userId =
+      session.metadata?.user_id ??
+      (typeof session.client_reference_id === "string"
+        ? session.client_reference_id
+        : null);
     const customerId =
       typeof session.customer === "string" ? session.customer : null;
 
@@ -111,21 +115,64 @@ export async function POST(request: Request) {
     const planType = await resolvePlanType(stripe, session);
 
     const serviceClient = createClient(supabaseUrl, supabaseServiceRole);
-    const { error } = await serviceClient.from("subscriptions").upsert(
+    const { error: ensureUserError } = await serviceClient.from("users").upsert(
       {
-        user_id: userId,
+        id: userId,
+        role: "user",
         stripe_customer_id: customerId,
-        status: "active",
-        plan_type: planType,
       },
-      {
-        onConflict: "user_id",
-      },
+      { onConflict: "id" },
     );
 
-    if (error) {
+    if (ensureUserError) {
       return NextResponse.json(
-        { error: `Failed to upsert subscription: ${error.message}` },
+        {
+          error: `Failed to ensure user profile row: ${ensureUserError.message}`,
+        },
+        { status: 500 },
+      );
+    }
+
+    const { error: userUpdateError } = await serviceClient
+      .from("users")
+      .update({ stripe_customer_id: customerId })
+      .eq("id", userId);
+
+    if (userUpdateError) {
+      return NextResponse.json(
+        {
+          error: `Failed to update user Stripe customer: ${userUpdateError.message}`,
+        },
+        { status: 500 },
+      );
+    }
+
+    const { error: deactivateError } = await serviceClient
+      .from("subscriptions")
+      .update({ status: "inactive" })
+      .eq("user_id", userId)
+      .eq("status", "active");
+
+    if (deactivateError) {
+      return NextResponse.json(
+        {
+          error: `Failed to deactivate previous subscriptions: ${deactivateError.message}`,
+        },
+        { status: 500 },
+      );
+    }
+
+    const { error: insertError } = await serviceClient
+      .from("subscriptions")
+      .insert({
+        user_id: userId,
+        status: "active",
+        plan_type: planType,
+      });
+
+    if (insertError) {
+      return NextResponse.json(
+        { error: `Failed to create subscription: ${insertError.message}` },
         { status: 500 },
       );
     }

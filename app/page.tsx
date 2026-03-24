@@ -2,10 +2,18 @@
 
 import { motion } from "framer-motion";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { createClient as createSupabaseClient } from "../utils/supabase/client";
+
+type FeaturedCharity = {
+  id: string;
+  name: string;
+  description: string | null;
+  image_url: string | null;
+};
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -77,6 +85,9 @@ export default function Page() {
   const [showPassword, setShowPassword] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [featuredCharity, setFeaturedCharity] =
+    useState<FeaturedCharity | null>(null);
+  const [isFeaturedLoading, setIsFeaturedLoading] = useState(true);
 
   const supabase = useMemo(() => {
     try {
@@ -106,6 +117,23 @@ export default function Page() {
       .eq("id", user.id)
       .maybeSingle();
 
+    if (!profile) {
+      const { error: createProfileError } = await supabase
+        .from("users")
+        .insert({
+          id: user.id,
+          role: "user",
+        });
+
+      if (createProfileError) {
+        await supabase.auth.signOut();
+        return;
+      }
+
+      router.replace("/dashboard");
+      return;
+    }
+
     if (profile?.role === "admin") {
       router.replace("/admin");
       return;
@@ -124,6 +152,30 @@ export default function Page() {
 
   useEffect(() => {
     void redirectByRole();
+  }, [supabase]);
+
+  useEffect(() => {
+    const loadFeaturedCharity = async () => {
+      if (!supabase) {
+        setIsFeaturedLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("charities")
+        .select("id, name, description, image_url")
+        .eq("is_featured", true)
+        .limit(1)
+        .maybeSingle();
+
+      if (!error) {
+        setFeaturedCharity((data as FeaturedCharity | null) ?? null);
+      }
+
+      setIsFeaturedLoading(false);
+    };
+
+    void loadFeaturedCharity();
   }, [supabase]);
 
   useEffect(() => {
@@ -160,6 +212,12 @@ export default function Page() {
   const goToNext = () => {
     setActiveSlide((previous) => (previous + 1) % heroSlides.length);
   };
+
+  const featuredExcerpt = featuredCharity?.description?.trim()
+    ? featuredCharity.description.length > 220
+      ? `${featuredCharity.description.slice(0, 219).trimEnd()}...`
+      : featuredCharity.description
+    : "This impact partner is transforming lives through practical, measurable programs that deserve your support.";
 
   const openAuthModal = () => {
     setAuthError(null);
@@ -203,7 +261,7 @@ export default function Page() {
       if (mode === "signup") {
         const siteUrl =
           process.env.NEXT_PUBLIC_SITE_URL?.trim() || window.location.origin;
-        const emailRedirectTo = `${siteUrl.replace(/\/$/, "")}/dashboard`;
+        const emailRedirectTo = `${siteUrl.replace(/\/$/, "")}/auth/callback`;
 
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
@@ -219,7 +277,7 @@ export default function Page() {
 
         if (!data.session) {
           toast.success(
-            "Verification link sent. Please check your email to activate your account.",
+            "Signup request accepted. If the email is valid, check inbox/spam for the verification link.",
           );
           setMode("signin");
           setPassword("");
@@ -382,6 +440,67 @@ export default function Page() {
           ))}
         </div>
       </section>
+
+      {!isFeaturedLoading ? (
+        <section className="mx-auto w-full max-w-7xl px-6 pb-20 md:px-10">
+          <div className="relative overflow-hidden rounded-4xl border border-primary/25 bg-linear-to-br from-primary/10 via-card to-background p-2">
+            <div className="grid grid-cols-1 overflow-hidden rounded-[1.6rem] border border-border/50 bg-background/70 backdrop-blur-sm lg:grid-cols-2">
+              <div className="relative h-88 lg:h-full lg:min-h-120">
+                {featuredCharity?.image_url ? (
+                  <Image
+                    src={featuredCharity.image_url}
+                    alt={featuredCharity.name}
+                    fill
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="h-full w-full bg-linear-to-br from-primary/25 via-accent/15 to-card" />
+                )}
+
+                <div className="absolute inset-0 bg-linear-to-r from-black/30 via-black/10 to-transparent" />
+                <div className="absolute -bottom-10 left-6 right-6 rounded-2xl border border-white/25 bg-white/15 p-4 backdrop-blur-md lg:hidden">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/85">
+                    Featured Impact Partner
+                  </p>
+                  <h3 className="mt-2 text-xl font-semibold text-white">
+                    {featuredCharity?.name ?? "Feature Coming Soon"}
+                  </h3>
+                </div>
+              </div>
+
+              <div className="relative flex items-center px-6 pb-8 pt-16 sm:px-8 lg:px-10 lg:py-12">
+                <div className="absolute -left-16 top-12 hidden h-40 w-40 rounded-full bg-primary/25 blur-3xl lg:block" />
+                <div className="absolute bottom-8 right-8 hidden h-28 w-28 rounded-full border border-primary/25 bg-primary/10 backdrop-blur-sm lg:block" />
+
+                <div className="relative w-full rounded-2xl border border-border/40 bg-card/70 p-6 shadow-xl shadow-primary/10 backdrop-blur-md sm:p-7">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+                    Featured Impact Partner
+                  </p>
+                  <h2 className="mt-3 text-3xl font-bold leading-tight sm:text-4xl">
+                    {featuredCharity?.name ?? "Spotlight Charity"}
+                  </h2>
+                  <p className="mt-4 text-sm leading-relaxed text-muted-foreground sm:text-base">
+                    {featuredExcerpt}
+                  </p>
+
+                  {featuredCharity ? (
+                    <Link
+                      href={`/charities/${featuredCharity.id}`}
+                      className="mt-7 inline-flex items-center justify-center rounded-xl bg-linear-to-r from-primary to-accent px-5 py-3 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/25 transition hover:brightness-110"
+                    >
+                      Support {featuredCharity.name} Today
+                    </Link>
+                  ) : (
+                    <p className="mt-7 inline-flex rounded-xl border border-border/60 bg-muted/40 px-4 py-2 text-sm text-muted-foreground">
+                      Featured charity will be announced shortly.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <section className="mx-auto w-full max-w-7xl px-6 pb-24 md:px-10">
         <motion.div

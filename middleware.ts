@@ -48,17 +48,19 @@ async function getRoleAndSubscriptionStatus(
   const role = (profileRes.data?.role as UserRole | undefined) ?? "user";
   const subscriptionStatus =
     (subscriptionRes.data?.status as string | undefined) ?? null;
+  const profileExists = Boolean(profileRes.data);
 
   return {
     role,
     subscriptionStatus,
+    profileExists,
     hasConfig: true,
   };
 }
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  const loginUrl = new URL("/login", request.url);
+  const landingUrl = new URL("/", request.url);
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey =
@@ -66,7 +68,7 @@ export async function middleware(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    const redirect = NextResponse.redirect(loginUrl);
+    const redirect = NextResponse.redirect(landingUrl);
     return redirect;
   }
 
@@ -94,7 +96,7 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    const redirectUrl = new URL("/login", request.url);
+    const redirectUrl = new URL("/", request.url);
     redirectUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(redirectUrl);
   }
@@ -113,11 +115,14 @@ export async function middleware(request: NextRequest) {
       user.user_metadata.subscription_status) ||
     null;
 
-  const { role, subscriptionStatus } = await getRoleAndSubscriptionStatus(
-    request,
-    response,
-    user.id,
-  );
+  const { role, subscriptionStatus, profileExists } =
+    await getRoleAndSubscriptionStatus(request, response, user.id);
+
+  if (!profileExists) {
+    const redirectUrl = new URL("/", request.url);
+    redirectUrl.searchParams.set("reason", "profile_missing");
+    return NextResponse.redirect(redirectUrl);
+  }
 
   const effectiveRole = metadataRole ?? role;
   const effectiveSubscriptionStatus =
