@@ -1,6 +1,7 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 type DrawItem = {
   id: string;
@@ -50,6 +51,25 @@ export default function DrawHistoryTable({
   onDeleteSimulatedDraw,
   deletingDrawId = null,
 }: DrawHistoryTableProps) {
+  const pageSize = 5;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const totalPages = Math.max(1, Math.ceil(draws.length / pageSize));
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginatedDraws = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return draws.slice(start, start + pageSize);
+  }, [currentPage, draws]);
+
+  const startItem = draws.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endItem = Math.min(currentPage * pageSize, draws.length);
+
   return (
     <section className="rounded-2xl border border-border/50 bg-card p-4 sm:p-5">
       <div>
@@ -61,7 +81,7 @@ export default function DrawHistoryTable({
 
       <div className="mt-4 space-y-3">
         {draws.length > 0 ? (
-          draws.map((draw) => {
+          paginatedDraws.map((draw) => {
             const isPublished = draw.status === "published";
             const isSimulated = draw.status === "simulated";
             const jackpotValue =
@@ -156,6 +176,38 @@ export default function DrawHistoryTable({
           </div>
         )}
       </div>
+
+      {draws.length > 0 ? (
+        <div className="mt-4 flex flex-col gap-3 border-t border-border/50 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            Showing {startItem}-{endItem} of {draws.length} draws
+          </p>
+
+          <div className="inline-flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="rounded-lg border border-border/50 bg-background px-3 py-1.5 text-sm transition hover:border-primary/45 hover:text-primary disabled:cursor-not-allowed disabled:opacity-55"
+            >
+              Previous
+            </button>
+            <span className="text-sm text-muted-foreground">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+              }
+              disabled={currentPage === totalPages}
+              className="rounded-lg border border-border/50 bg-background px-3 py-1.5 text-sm transition hover:border-primary/45 hover:text-primary disabled:cursor-not-allowed disabled:opacity-55"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

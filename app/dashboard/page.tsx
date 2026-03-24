@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient as createSupabaseClient } from "../../utils/supabase/client";
 import WinnerVerificationAlert from "./components/WinnerVerificationAlert";
@@ -60,7 +60,7 @@ type SystemSettingsRow = {
 
 const todayIso = new Date().toISOString().slice(0, 10);
 
-export default function DashboardPage() {
+function DashboardPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(true);
@@ -822,5 +822,19 @@ export default function DashboardPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="rounded-2xl border border-border/60 bg-card p-6 text-muted-foreground shadow-sm">
+          Loading dashboard...
+        </div>
+      }
+    >
+      <DashboardPageContent />
+    </Suspense>
   );
 }

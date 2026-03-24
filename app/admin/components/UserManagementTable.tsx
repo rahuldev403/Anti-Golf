@@ -1,7 +1,7 @@
 "use client";
 
 import { Eye, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type UserItem = {
   id: string;
@@ -32,6 +32,8 @@ export default function UserManagementTable({
   loadingScoresForUser = null,
 }: UserManagementTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 8;
 
   const filteredUsers = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -48,6 +50,23 @@ export default function UserManagementTable({
       return idMatch || charityMatch;
     });
   }, [searchQuery, users]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginatedUsers = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredUsers.slice(start, start + pageSize);
+  }, [currentPage, filteredUsers]);
+
+  const startItem =
+    filteredUsers.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endItem = Math.min(currentPage * pageSize, filteredUsers.length);
 
   return (
     <section className="rounded-2xl border border-border/50 bg-card p-4 sm:p-5">
@@ -68,7 +87,10 @@ export default function UserManagementTable({
           <input
             type="text"
             value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
+            onChange={(event) => {
+              setSearchQuery(event.target.value);
+              setCurrentPage(1);
+            }}
             placeholder="Search by user or charity"
             className="w-full rounded-lg border border-border/50 bg-background py-2 pl-9 pr-3 text-sm outline-none transition focus:border-primary"
           />
@@ -90,7 +112,7 @@ export default function UserManagementTable({
 
           <tbody>
             {filteredUsers.length > 0 ? (
-              filteredUsers.map((user) => {
+              paginatedUsers.map((user) => {
                 const isActive = user.subscription_status === "active";
 
                 return (
@@ -154,6 +176,38 @@ export default function UserManagementTable({
           </tbody>
         </table>
       </div>
+
+      {filteredUsers.length > 0 ? (
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            Showing {startItem}-{endItem} of {filteredUsers.length} users
+          </p>
+
+          <div className="inline-flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="rounded-lg border border-border/50 bg-background px-3 py-1.5 text-sm transition hover:border-primary/45 hover:text-primary disabled:cursor-not-allowed disabled:opacity-55"
+            >
+              Previous
+            </button>
+            <span className="text-sm text-muted-foreground">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+              }
+              disabled={currentPage === totalPages}
+              className="rounded-lg border border-border/50 bg-background px-3 py-1.5 text-sm transition hover:border-primary/45 hover:text-primary disabled:cursor-not-allowed disabled:opacity-55"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
