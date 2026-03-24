@@ -199,10 +199,6 @@ export default function Page() {
     };
   }, [isAuthModalOpen]);
 
-  const goToSlide = (index: number) => {
-    setActiveSlide(index);
-  };
-
   const goToPrevious = () => {
     setActiveSlide((previous) =>
       previous === 0 ? heroSlides.length - 1 : previous - 1,
@@ -311,7 +307,7 @@ export default function Page() {
   };
 
   return (
-    <main className="relative min-h-screen bg-background text-foreground">
+    <main className="relative min-h-screen overflow-x-clip bg-background text-foreground">
       <div className="absolute inset-0 -z-10 overflow-hidden">
         <div className="absolute left-1/2 top-[-20rem] h-[42rem] w-[42rem] -translate-x-1/2 rounded-full bg-primary/20 blur-3xl" />
         <div className="absolute right-[-12rem] top-1/3 h-[30rem] w-[30rem] rounded-full bg-chart-3/15 blur-3xl" />
@@ -339,7 +335,7 @@ export default function Page() {
         <div className="pointer-events-none absolute inset-0 bg-background/40 backdrop-blur-[3px]" />
         <div className="pointer-events-none absolute inset-0 bg-linear-to-tr from-background/85 via-background/35 to-primary/20" />
 
-        <div className="absolute inset-0 z-10 flex items-center justify-center px-6 md:px-10">
+        <div className="absolute inset-0 z-10 flex items-start justify-center px-6 pb-32 pt-1 sm:pt-4 md:px-10 md:pt-7 lg:pt-11">
           <motion.div
             variants={staggerContainer}
             initial="hidden"
@@ -355,7 +351,7 @@ export default function Page() {
 
             <motion.h1
               variants={fadeUp}
-              className="mt-4 text-4xl font-semibold leading-tight text-foreground sm:text-5xl lg:text-6xl"
+              className="mt-2 text-4xl font-semibold leading-tight text-foreground sm:text-5xl lg:text-6xl"
             >
               Track Every Win.
               <br className="hidden sm:block" />
@@ -364,14 +360,14 @@ export default function Page() {
 
             <motion.p
               variants={fadeUp}
-              className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg"
+              className="mx-auto mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg"
             >
               A premium subscription platform where your personal progress fuels
               real-world change. Improve your game, stay accountable, and direct
               meaningful donations to trusted charities every month.
             </motion.p>
 
-            <motion.div variants={fadeUp} className="pt-6">
+            <motion.div variants={fadeUp} className="pt-3">
               <button
                 type="button"
                 onClick={openAuthModal}
@@ -379,30 +375,6 @@ export default function Page() {
               >
                 Subscribe Now
               </button>
-            </motion.div>
-
-            <motion.div
-              variants={fadeUp}
-              className="mx-auto mt-7 grid max-w-2xl grid-cols-1 gap-3 rounded-2xl border border-border/60 bg-background/45 p-4 backdrop-blur-sm sm:grid-cols-3"
-            >
-              <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Monthly Draw
-                </p>
-                <p className="mt-1 text-lg font-semibold">5 Chances</p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Real Impact
-                </p>
-                <p className="mt-1 text-lg font-semibold">Charity Routed</p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Your Progress
-                </p>
-                <p className="mt-1 text-lg font-semibold">Live Tracking</p>
-              </div>
             </motion.div>
           </motion.div>
         </div>
@@ -423,49 +395,22 @@ export default function Page() {
         >
           ›
         </button>
-
-        <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 gap-2">
-          {heroSlides.map((slide, index) => (
-            <button
-              key={slide.title}
-              type="button"
-              aria-label={`Go to slide ${index + 1}`}
-              onClick={() => goToSlide(index)}
-              className={`h-2.5 w-2.5 rounded-full transition ${
-                index === activeSlide
-                  ? "bg-primary"
-                  : "bg-muted-foreground/45 hover:bg-muted-foreground/75"
-              }`}
-            />
-          ))}
-        </div>
       </section>
 
       {!isFeaturedLoading ? (
-        <section className="mx-auto w-full max-w-7xl px-6 pb-20 md:px-10">
+        <section className="mx-auto w-full max-w-7xl px-6 py-16 md:px-10 lg:py-20">
           <div className="relative overflow-hidden rounded-4xl border border-primary/25 bg-linear-to-br from-primary/10 via-card to-background p-2">
             <div className="grid grid-cols-1 overflow-hidden rounded-[1.6rem] border border-border/50 bg-background/70 backdrop-blur-sm lg:grid-cols-2">
               <div className="relative h-88 lg:h-full lg:min-h-120">
-                {featuredCharity?.image_url ? (
-                  <Image
-                    src={featuredCharity.image_url}
-                    alt={featuredCharity.name}
-                    fill
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className="h-full w-full bg-linear-to-br from-primary/25 via-accent/15 to-card" />
-                )}
+                <Image
+                  src="https://images.unsplash.com/photo-1559027615-cd4628902d4a?w=1200&h=800&fit=crop"
+                  alt="Featured charity supporting real-world impact"
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  className="object-cover"
+                />
 
                 <div className="absolute inset-0 bg-linear-to-r from-black/30 via-black/10 to-transparent" />
-                <div className="absolute -bottom-10 left-6 right-6 rounded-2xl border border-white/25 bg-white/15 p-4 backdrop-blur-md lg:hidden">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/85">
-                    Featured Impact Partner
-                  </p>
-                  <h3 className="mt-2 text-xl font-semibold text-white">
-                    {featuredCharity?.name ?? "Feature Coming Soon"}
-                  </h3>
-                </div>
               </div>
 
               <div className="relative flex items-center px-6 pb-8 pt-16 sm:px-8 lg:px-10 lg:py-12">
@@ -502,7 +447,7 @@ export default function Page() {
         </section>
       ) : null}
 
-      <section className="mx-auto w-full max-w-7xl px-6 pb-24 md:px-10">
+      <section className="mx-auto w-full max-w-7xl px-6 py-16 md:px-10 lg:py-20">
         <motion.div
           variants={staggerContainer}
           initial="hidden"
@@ -528,7 +473,7 @@ export default function Page() {
               <motion.article
                 key={step.title}
                 variants={fadeUp}
-                className="rounded-2xl border border-border/70 bg-card/80 p-6 transition hover:-translate-y-1 hover:border-primary/50"
+                className="rounded-2xl border border-border/70 bg-card/80 p-6"
               >
                 <div className="mb-5 inline-flex h-14 w-14 items-center justify-center rounded-xl border border-primary/30 bg-muted/80">
                   <Image

@@ -170,8 +170,8 @@ export default function ScoresPage() {
         {/* LEFT: Score Input */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           {/* Glassmorphism Card */}
-          <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-8 backdrop-blur-md">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 pointer-events-none" />
+          <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/10 p-8 backdrop-blur-md">
+            <div className="pointer-events-none absolute inset-0 bg-primary/10" />
 
             <div className="relative z-10 space-y-8">
               {/* Large Numeric Display */}
@@ -184,7 +184,7 @@ export default function ScoresPage() {
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ duration: 0.2 }}
-                  className="text-8xl font-black bg-gradient-to-b from-primary to-accent bg-clip-text text-transparent tracking-tighter"
+                  className="text-8xl font-black text-primary tracking-tighter"
                 >
                   {scoreInput}
                 </motion.div>
@@ -197,7 +197,7 @@ export default function ScoresPage() {
                   onClick={decrementScore}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-lg hover:shadow-xl transition-shadow active:shadow-md"
+                  className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg transition-shadow hover:shadow-xl active:shadow-md"
                 >
                   <Minus size={28} />
                 </motion.button>
@@ -207,7 +207,7 @@ export default function ScoresPage() {
                   onClick={incrementScore}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-lg hover:shadow-xl transition-shadow active:shadow-md"
+                  className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg transition-shadow hover:shadow-xl active:shadow-md"
                 >
                   <Plus size={28} />
                 </motion.button>
@@ -217,11 +217,12 @@ export default function ScoresPage() {
               <div className="flex flex-col gap-3">
                 <input
                   type="range"
+                  aria-label="Select golf score"
                   min="1"
                   max="45"
                   value={scoreInput}
                   onChange={(e) => setScoreInput(Number(e.target.value))}
-                  className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-primary"
+                  className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-foreground/30 accent-primary dark:bg-white/20"
                 />
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>1</span>
@@ -253,7 +254,7 @@ export default function ScoresPage() {
             disabled={isSubmitting}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="rounded-xl bg-gradient-to-r from-primary to-accent px-6 py-3 text-base font-semibold text-primary-foreground shadow-lg hover:shadow-xl transition-all disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-xl bg-primary px-6 py-3 text-base font-semibold text-primary-foreground shadow-lg transition-all hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSubmitting ? "Submitting..." : "Submit Score"}
           </motion.button>
@@ -272,7 +273,7 @@ export default function ScoresPage() {
           ) : (
             <div className="relative space-y-6">
               {/* Vertical Line */}
-              <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gradient-to-b from-primary via-accent to-transparent" />
+              <div className="absolute bottom-0 left-5 top-0 w-0.5 bg-primary/40" />
 
               {/* Timeline Items */}
               {scores.map((score, idx) => (
@@ -283,18 +284,8 @@ export default function ScoresPage() {
                   transition={{ delay: idx * 0.08 }}
                   className="relative pl-16"
                 >
-                  {/* Glowing Dot */}
-                  <motion.div
-                    className="absolute left-0 top-1.5 h-10 w-10 rounded-full bg-gradient-to-br from-primary to-accent shadow-lg"
-                    animate={{
-                      boxShadow: [
-                        "0 0 20px rgba(99, 102, 241, 0.5)",
-                        "0 0 30px rgba(99, 102, 241, 0.8)",
-                        "0 0 20px rgba(99, 102, 241, 0.5)",
-                      ],
-                    }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  >
+                  {/* Score Dot */}
+                  <motion.div className="absolute left-0 top-1.5 h-10 w-10 rounded-full border border-border/50 bg-primary">
                     <div className="flex h-full w-full items-center justify-center text-sm font-bold text-primary-foreground">
                       {score.score}
                     </div>

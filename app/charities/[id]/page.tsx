@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { CharitiesFooter } from "../components/charities-footer";
 import { createClient as createSupabaseClient } from "../../../utils/supabase/client";
 
 type Charity = {
@@ -348,6 +349,14 @@ export default function CharityDetailPage() {
 
       <section className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:px-10">
         <article className="space-y-7">
+          <button
+            type="button"
+            onClick={() => router.push("/charities")}
+            className="inline-flex items-center rounded-lg border border-border/70 bg-card px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground transition hover:border-primary/50 hover:text-foreground"
+          >
+            Back to Charity Directory
+          </button>
+
           {errorMessage ? (
             <div className="rounded-xl border border-destructive/35 bg-destructive/10 p-4 text-sm text-destructive">
               {errorMessage}
@@ -437,9 +446,18 @@ export default function CharityDetailPage() {
             >
               Make a One-Off Donation
             </button>
+
+            <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
+              Donations are processed securely through Stripe. You can support
+              once or set this charity as your monthly beneficiary.
+            </p>
           </div>
         </aside>
       </section>
+
+      <div className="mx-auto w-full max-w-7xl px-4 pb-8 sm:px-6 lg:px-10">
+        <CharitiesFooter />
+      </div>
 
       {showDonationModal ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center">

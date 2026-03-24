@@ -558,7 +558,7 @@ export default function AdminDashboardPage() {
                       !latestDraw ||
                       latestDraw.status === "published"
                     }
-                    className="rounded-lg bg-chart-3 px-4 py-2 text-sm font-semibold text-foreground hover:brightness-110 disabled:opacity-60"
+                    className="rounded-lg bg-chart-3 px-4 py-2 text-sm font-bold text-black dark:text-black hover:brightness-110 disabled:opacity-60"
                   >
                     {isPublishingDraw
                       ? "Publishing Official Results..."

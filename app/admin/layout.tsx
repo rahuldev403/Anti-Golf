@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { ReactNode } from "react";
-import { LayoutDashboard } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { ReactNode, useState } from "react";
+import { LayoutDashboard, LogOut } from "lucide-react";
+import { createClient as createSupabaseClient } from "../../utils/supabase/client";
 import ThemeToggle from "../components/ThemeToggle";
 
 type AdminLayoutProps = {
@@ -20,6 +21,21 @@ const navItems = [
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      const supabase = createSupabaseClient();
+      await supabase.auth.signOut();
+      router.push("/");
+    } catch (error) {
+      console.error("Logout failed:", error);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground md:grid md:grid-cols-[260px_1fr]">
@@ -41,7 +57,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 href={item.href}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
                   isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    ? "bg-sidebar-accent text-black dark:text-black font-bold"
                     : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 }`}
               >
@@ -52,8 +68,18 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           })}
         </nav>
 
-        <div className="border-t border-sidebar-border p-3">
+        <div className="border-t border-sidebar-border p-3 space-y-2">
           <ThemeToggle className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent/60 px-3 py-2 text-sm font-medium text-sidebar-foreground transition hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive transition hover:bg-destructive/20 disabled:opacity-60 disabled:cursor-not-allowed"
+            aria-label="Logout"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>{isLoggingOut ? "Signing out..." : "Logout"}</span>
+          </button>
         </div>
       </aside>
 

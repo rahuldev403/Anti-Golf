@@ -11,18 +11,8 @@ type ThemeToggleProps = {
 const STORAGE_KEY = "theme";
 
 function resolveInitialTheme(): ThemeMode {
-  if (typeof window === "undefined") {
-    return "dark";
-  }
-
-  const storedTheme = window.localStorage.getItem(STORAGE_KEY);
-  if (storedTheme === "light" || storedTheme === "dark") {
-    return storedTheme;
-  }
-
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
+  // Always default to dark theme
+  return "dark";
 }
 
 function applyTheme(theme: ThemeMode) {

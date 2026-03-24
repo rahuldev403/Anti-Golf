@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient as createSupabaseClient } from "../../utils/supabase/client";
@@ -66,7 +67,6 @@ export default function DashboardPage() {
   const [isSubmittingScore, setIsSubmittingScore] = useState(false);
   const [isSavingContribution, setIsSavingContribution] = useState(false);
   const [isUploadingProof, setIsUploadingProof] = useState(false);
-  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const [userId, setUserId] = useState<string | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionRow | null>(
@@ -498,33 +498,6 @@ export default function DashboardPage() {
     latestDraw && pendingWinner && pendingWinner.draw_id === latestDraw.id,
   );
 
-  const handleSignOut = async () => {
-    setErrorMessage(null);
-    setSuccessMessage(null);
-
-    if (!supabase) {
-      setErrorMessage("Supabase client is unavailable.");
-      return;
-    }
-
-    try {
-      setIsSigningOut(true);
-      const { error } = await supabase.auth.signOut();
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      router.replace("/");
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to sign out.";
-      setErrorMessage(message);
-    } finally {
-      setIsSigningOut(false);
-    }
-  };
-
   return (
     <div className="space-y-6 text-foreground">
       {checkoutToastMessage ? (
@@ -542,27 +515,41 @@ export default function DashboardPage() {
         onSubmit={handleProofUpload}
       />
 
-      <header className="rounded-xl border border-border/50 bg-card p-6 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold sm:text-3xl">
-              Your Dashboard
-            </h1>
-            <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-              Keep momentum, track impact, and celebrate every milestone.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleSignOut}
-            disabled={isSigningOut}
-            className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isSigningOut ? "Signing out..." : "Sign Out"}
-          </button>
+      {/* Illustration Hero Section */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="relative overflow-hidden rounded-xl border border-primary/30 bg-linear-to-br from-primary/5 via-primary/2 to-transparent p-8 shadow-sm"
+      >
+        <div className="absolute inset-0 opacity-10">
+          <Image
+            src="/illustration.png"
+            alt="Golf Impact illustration"
+            fill
+            className="object-cover"
+          />
         </div>
-      </header>
+        <div className="relative z-10 flex flex-col items-center justify-center gap-4 sm:flex-row sm:items-start">
+          <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center">
+            <Image
+              src="/logo.png"
+              alt="Golf Impact illustration"
+              width={100}
+              height={100}
+              className="object-contain rounded-2xl"
+            />
+            <div>
+              <h1 className="text-2xl font-bold sm:text-3xl">
+                Your Golf Impact Hub
+              </h1>
+              <p className="mt-1 text-center text-sm text-muted-foreground sm:text-left sm:text-base">
+                Every swing counts. Every score matters.
+              </p>
+            </div>
+          </div>
+        </div>
+      </motion.div>
 
       <ActiveDrawStatus
         isSubscribed={subscription?.status === "active"}
@@ -659,10 +646,10 @@ export default function DashboardPage() {
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
                 Quick Actions
               </p>
-              <div className="mt-4 grid grid-cols-1 gap-2">
+              <div className="relative z-10 mt-4 grid grid-cols-1 gap-2">
                 <Link
                   href="/dashboard/scores"
-                  className="inline-flex items-center justify-center rounded-lg bg-linear-to-r from-primary to-accent px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:brightness-110"
+                  className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:brightness-110"
                 >
                   Enter Scores
                 </Link>

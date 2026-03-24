@@ -125,10 +125,10 @@ export default function ActiveDrawStatus({
       ) : null}
 
       {isSubscribed && safeScoreCount === 5 ? (
-        <div className="mt-6 rounded-xl border border-chart-3/40 bg-chart-3/15 p-4">
+        <div className="mt-6 rounded-xl border border-chart-3/40 5 p-4">
           <div className="flex items-start gap-3">
-            <CheckCircle2 className="mt-0.5 h-7 w-7 text-chart-3" />
-            <p className="text-sm font-semibold text-chart-3">
+            <CheckCircle2 className="mt-0.5 h-7 w-7 text-primary" />
+            <p className="text-sm font-semibold text-primary">
               You are fully qualified! Your latest 5 scores are locked in for
               the upcoming draw.
             </p>

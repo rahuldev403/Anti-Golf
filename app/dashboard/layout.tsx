@@ -2,9 +2,11 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { CreditCard, Heart, Home, Menu, Target, X } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { CreditCard, Heart, Home, LogOut, Menu, Target, X } from "lucide-react";
 import { ReactNode, useState } from "react";
+import { createClient as createSupabaseClient } from "../../utils/supabase/client";
+import ThemeToggle from "../components/ThemeToggle";
 
 type DashboardLayoutProps = {
   children: ReactNode;
@@ -41,12 +43,35 @@ const navItems: NavItem[] = [
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const supabase = createSupabaseClient();
 
   const activePath = pathname ?? "/dashboard";
 
   const closeMobileSidebar = () => {
     setIsMobileSidebarOpen(false);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      setIsSigningOut(true);
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      router.replace("/");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to sign out.";
+      console.error(message);
+    } finally {
+      setIsSigningOut(false);
+    }
   };
 
   return (
@@ -88,7 +113,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 href={item.href}
                 className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${
                   isActive
-                    ? "bg-sidebar-accent text-primary"
+                    ? "bg-sidebar-accent text-black dark:text-black font-bold"
                     : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 }`}
               >
@@ -98,6 +123,19 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             );
           })}
         </nav>
+
+        <div className="border-t border-sidebar-border p-4 space-y-2">
+          <ThemeToggle className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent/60 px-3 py-2 text-sm font-medium text-sidebar-foreground transition hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />
+          <button
+            type="button"
+            onClick={handleSignOut}
+            disabled={isSigningOut}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive transition hover:bg-destructive/20 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <LogOut className="h-4 w-4" />
+            {isSigningOut ? "Signing out..." : "Sign Out"}
+          </button>
+        </div>
       </aside>
 
       <AnimatePresence>
@@ -148,7 +186,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                       onClick={closeMobileSidebar}
                       className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${
                         isActive
-                          ? "bg-sidebar-accent text-primary"
+                          ? "bg-sidebar-accent text-black dark:text-black font-bold"
                           : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                       }`}
                     >
@@ -158,6 +196,19 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   );
                 })}
               </nav>
+
+              <div className="mt-4 border-t border-sidebar-border pt-4 space-y-2">
+                <ThemeToggle className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent/60 px-3 py-2 text-sm font-medium text-sidebar-foreground transition hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  disabled={isSigningOut}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive transition hover:bg-destructive/20 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <LogOut className="h-4 w-4" />
+                  {isSigningOut ? "Signing out..." : "Sign Out"}
+                </button>
+              </div>
             </motion.aside>
           </motion.div>
         ) : null}

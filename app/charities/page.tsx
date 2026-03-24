@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { CharitiesFooter } from "./components/charities-footer";
 import { createClient as createSupabaseClient } from "../../utils/supabase/client";
 
 type Charity = {
@@ -128,6 +129,14 @@ export default function CharityDirectoryPage() {
     });
   }, [activeCategory, charities, searchTerm]);
 
+  const hasActiveFilters =
+    activeCategory !== "All" || searchTerm.trim().length > 0;
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setActiveCategory("All");
+  };
+
   return (
     <main className="min-h-screen bg-background px-4 py-10 text-foreground sm:px-6 lg:px-10">
       <div className="mx-auto w-full max-w-7xl space-y-8">
@@ -180,6 +189,24 @@ export default function CharityDirectoryPage() {
               })}
             </div>
           </div>
+
+          {!isLoading && !errorMessage ? (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3 text-xs text-muted-foreground">
+              <p>
+                Showing {filteredCharities.length} of {charities.length}{" "}
+                charities.
+              </p>
+              {hasActiveFilters ? (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="rounded-md border border-border/70 px-2.5 py-1.5 text-xs font-semibold text-foreground transition hover:border-primary/50"
+                >
+                  Clear filters
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </section>
 
         {isLoading ? (
@@ -249,10 +276,21 @@ export default function CharityDirectoryPage() {
             </motion.section>
           ) : (
             <div className="rounded-2xl border border-border/60 bg-card p-8 text-sm text-muted-foreground">
-              No charities match your search and filter selection.
+              <p>No charities match your search and filter selection.</p>
+              {hasActiveFilters ? (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="mt-4 rounded-lg border border-border/70 px-3 py-2 text-xs font-semibold text-foreground transition hover:border-primary/50"
+                >
+                  Reset search and filters
+                </button>
+              ) : null}
             </div>
           )
         ) : null}
+
+        <CharitiesFooter />
       </div>
     </main>
   );
