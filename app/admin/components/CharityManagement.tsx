@@ -90,18 +90,46 @@ export default function CharityManagement({
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [featuredFilter, setFeaturedFilter] = useState<
+    "all" | "featured" | "standard"
+  >("all");
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 6;
 
+  const categoryOptions = useMemo(() => {
+    const unique = new Set<string>();
+    charities.forEach((charity) => {
+      const normalized = charity.category?.trim();
+      if (normalized) {
+        unique.add(normalized);
+      }
+    });
+
+    return ["all", ...Array.from(unique).sort((a, b) => a.localeCompare(b))];
+  }, [charities]);
+
   const filteredCharities = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return charities;
-    return charities.filter(
-      (charity) =>
+    return charities.filter((charity) => {
+      const matchesQuery =
+        !query ||
         charity.name.toLowerCase().includes(query) ||
-        (charity.category?.toLowerCase().includes(query) ?? false),
-    );
-  }, [charities, searchQuery]);
+        (charity.category?.toLowerCase().includes(query) ?? false);
+
+      const matchesCategory =
+        categoryFilter === "all" ||
+        (charity.category?.trim() ?? "") === categoryFilter;
+
+      const matchesFeatured =
+        featuredFilter === "all" ||
+        (featuredFilter === "featured"
+          ? charity.is_featured
+          : !charity.is_featured);
+
+      return matchesQuery && matchesCategory && matchesFeatured;
+    });
+  }, [charities, searchQuery, categoryFilter, featuredFilter]);
 
   const totalPages = Math.max(
     1,
@@ -339,6 +367,18 @@ export default function CharityManagement({
     }
   };
 
+  const clearFilters = () => {
+    setSearchQuery("");
+    setCategoryFilter("all");
+    setFeaturedFilter("all");
+    setCurrentPage(1);
+  };
+
+  const hasActiveFilters =
+    searchQuery.trim().length > 0 ||
+    categoryFilter !== "all" ||
+    featuredFilter !== "all";
+
   return (
     <div className="space-y-6">
       <div className="pointer-events-none fixed right-4 top-4 z-90 flex w-[min(92vw,24rem)] flex-col gap-2">
@@ -416,7 +456,7 @@ export default function CharityManagement({
           </button>
         </div>
 
-        <div className="mt-3">
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
           <input
             type="text"
             placeholder="Search by name or category..."
@@ -427,6 +467,55 @@ export default function CharityManagement({
             }}
             className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground placeholder-muted-foreground focus:border-blue-500 focus:outline-none"
           />
+
+          <select
+            value={categoryFilter}
+            onChange={(event) => {
+              setCategoryFilter(event.target.value);
+              setCurrentPage(1);
+            }}
+            aria-label="Filter charities by category"
+            title="Filter charities by category"
+            className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:border-blue-500 focus:outline-none"
+          >
+            <option value="all">All categories</option>
+            {categoryOptions
+              .filter((item) => item !== "all")
+              .map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+          </select>
+
+          <div className="flex items-center gap-2">
+            <select
+              value={featuredFilter}
+              onChange={(event) => {
+                setFeaturedFilter(
+                  event.target.value as "all" | "featured" | "standard",
+                );
+                setCurrentPage(1);
+              }}
+              aria-label="Filter charities by featured status"
+              title="Filter charities by featured status"
+              className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:border-blue-500 focus:outline-none"
+            >
+              <option value="all">All statuses</option>
+              <option value="featured">Featured only</option>
+              <option value="standard">Standard only</option>
+            </select>
+
+            {hasActiveFilters ? (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="h-10 shrink-0 rounded-lg border border-border px-3 text-sm font-medium text-foreground transition hover:bg-muted"
+              >
+                Clear
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
 
