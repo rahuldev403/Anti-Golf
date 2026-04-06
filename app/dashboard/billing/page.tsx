@@ -114,7 +114,7 @@ function BillingPageContent() {
 
   return (
     <section className="space-y-6">
-      <header className="relative overflow-hidden rounded-2xl border border-border/70 bg-linear-to-r from-primary/10 via-background to-chart-2/10 p-6 shadow-sm">
+      <header className="relative overflow-hidden rounded-2xl border border-border/70 bg-linear-to-r from-primary/10 via-background to-chart-2/10 p-4 shadow-sm sm:p-6">
         <div
           className="absolute -right-12 -top-14 h-40 w-40 rounded-full bg-primary/10 blur-2xl"
           aria-hidden="true"
@@ -187,8 +187,8 @@ function BillingPageContent() {
       ) : null}
 
       {!isFetchingSubscription && !hasActiveSubscription ? (
-        <article className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm sm:p-6">
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <article className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-6">
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <div>
               <h2 className="text-xl font-semibold">Premium Access Plans</h2>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -196,11 +196,11 @@ function BillingPageContent() {
               </p>
             </div>
 
-            <div className="inline-flex rounded-lg border border-border/70 bg-muted/50 p-1">
+            <div className="inline-flex w-full rounded-lg border border-border/70 bg-muted/50 p-1 sm:w-auto">
               <button
                 type="button"
                 onClick={() => setPlanType("monthly")}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition sm:flex-none ${
                   planType === "monthly"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
@@ -211,7 +211,7 @@ function BillingPageContent() {
               <button
                 type="button"
                 onClick={() => setPlanType("yearly")}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition sm:flex-none ${
                   planType === "yearly"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
@@ -271,7 +271,7 @@ function BillingPageContent() {
             </button>
           </div>
 
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-background/60 p-4">
+          <div className="mt-5 flex flex-col gap-3 rounded-xl border border-border/70 bg-background/60 p-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Selected plan</p>
               <p className="text-xl font-semibold text-primary">
@@ -283,7 +283,7 @@ function BillingPageContent() {
               type="button"
               onClick={handleCheckout}
               disabled={isLoading}
-              className="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex w-full items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
             >
               {isLoading ? "Redirecting..." : "Continue to Checkout"}
             </button>

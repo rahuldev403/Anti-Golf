@@ -530,18 +530,25 @@ function DashboardPageContent() {
   const isLatestDrawWinner = Boolean(
     latestDraw && pendingWinner && pendingWinner.draw_id === latestDraw.id,
   );
+  const currentMonthLabel = new Date().toLocaleDateString(undefined, {
+    month: "long",
+    year: "numeric",
+  });
+  const selectedPlanLabel = subscription?.plan_type
+    ? `${subscription.plan_type[0].toUpperCase()}${subscription.plan_type.slice(1)} Plan`
+    : "No active plan";
 
   return (
     <div className="space-y-6 text-foreground">
       {checkoutToastMessage ? (
-        <div className="fixed bottom-4 right-4 z-50 max-w-sm rounded-xl border border-chart-3/40 bg-card/95 px-4 py-3 text-sm text-foreground shadow-xl backdrop-blur">
+        <div className="fixed bottom-3 left-3 right-3 z-50 rounded-xl border border-chart-3/40 bg-card/95 px-4 py-3 text-sm text-foreground shadow-xl backdrop-blur sm:bottom-4 sm:left-auto sm:right-4 sm:max-w-sm">
           <p className="font-semibold text-chart-3">Billing Success</p>
           <p className="mt-1 text-muted-foreground">{checkoutToastMessage}</p>
         </div>
       ) : null}
 
       {proofUploadToastMessage ? (
-        <div className="fixed bottom-24 right-4 z-50 max-w-sm rounded-xl border border-emerald-300/60 bg-emerald-600/95 px-4 py-3 text-sm text-white shadow-xl backdrop-blur">
+        <div className="fixed bottom-20 left-3 right-3 z-50 rounded-xl border border-emerald-300/60 bg-emerald-600/95 px-4 py-3 text-sm text-white shadow-xl backdrop-blur sm:bottom-24 sm:left-auto sm:right-4 sm:max-w-sm">
           <p className="font-semibold">Proof Submitted</p>
           <p className="mt-1 text-white/90">{proofUploadToastMessage}</p>
         </div>
@@ -552,7 +559,7 @@ function DashboardPageContent() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="relative overflow-hidden rounded-2xl border border-border/70 bg-linear-to-r from-primary/10 via-background to-chart-2/10 p-6 shadow-sm sm:p-8"
+        className="relative overflow-hidden rounded-2xl border border-border/70 bg-linear-to-r from-primary/10 via-background to-chart-2/10 p-4 shadow-sm sm:p-6 md:p-8"
       >
         <div className="absolute inset-0 opacity-15">
           <Image
@@ -572,22 +579,22 @@ function DashboardPageContent() {
           aria-hidden="true"
         />
         <div className="relative z-10 flex flex-col items-center justify-center gap-4 sm:flex-row sm:items-start">
-          <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center">
+          <div className="flex w-full flex-col items-center gap-4 sm:w-auto sm:flex-row sm:items-center">
             <Image
               src="/logoV1.png"
               alt="Golf Impact illustration"
               width={100}
               height={100}
-              className="h-auto w-auto rounded-2xl object-contain"
+              className="h-20 w-20 rounded-2xl object-contain sm:h-auto sm:w-auto"
             />
-            <div>
+            <div className="text-center sm:text-left">
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                 Dashboard Overview
               </p>
               <h1 className="text-2xl font-bold sm:text-3xl">
                 Your Golf Impact Hub
               </h1>
-              <p className="mt-1 text-center text-sm text-muted-foreground sm:text-left sm:text-base">
+              <p className="mt-1 text-sm text-muted-foreground sm:text-base">
                 Every swing counts. Every score matters.
               </p>
             </div>
@@ -605,12 +612,41 @@ function DashboardPageContent() {
         onSubmit={handleProofUpload}
       />
 
+      <section className="rounded-2xl border border-border/60 bg-card/70 p-3 backdrop-blur-sm sm:p-4">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <div className="rounded-xl border border-border/60 bg-background/70 px-3 py-2">
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              Draw Cycle
+            </p>
+            <p className="mt-1 text-sm font-semibold text-foreground">
+              {currentMonthLabel}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border/60 bg-background/70 px-3 py-2">
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              Membership
+            </p>
+            <p className="mt-1 text-sm font-semibold text-foreground">
+              {selectedPlanLabel}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border/60 bg-background/70 px-3 py-2">
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              Beneficiary
+            </p>
+            <p className="mt-1 truncate text-sm font-semibold text-foreground">
+              {selectedCharity?.name ?? "Not selected yet"}
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* Browse Charities Card */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.1 }}
-        className="rounded-2xl border border-accent/40 bg-linear-to-r from-accent/10 to-primary/5 p-6 shadow-sm"
+        className="rounded-2xl border border-accent/40 bg-linear-to-r from-accent/10 to-primary/5 p-4 shadow-sm sm:p-6"
       >
         <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div>
@@ -632,72 +668,73 @@ function DashboardPageContent() {
         </div>
       </motion.div>
 
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
+      <div className="rounded-2xl border border-border/60 bg-card p-3 shadow-sm sm:p-4">
+        <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <ActiveDrawStatus
             isSubscribed={subscription?.status === "active"}
             scoreCount={scores.length}
             currentJackpot={currentJackpot}
           />
-        </div>
 
-        <section className="rounded-2xl border border-primary/70 bg-card p-6 shadow-[0_0_38px_-10px_hsl(var(--primary))]">
-          {latestDraw ? (
-            <>
-              <div className="mb-2 flex items-start justify-between gap-3">
-                <h2 className="text-xl font-semibold">Latest Draw Results</h2>
-                <div className="flex h-20 w-24 items-center justify-center overflow-hidden rounded-lg border border-border/50 bg-background/50 p-1.5">
-                  <Image
-                    src="/result.png"
-                    alt="Latest draw results"
-                    width={120}
-                    height={80}
-                    className="h-20 w-24 object-contain"
-                  />
+          <section className="rounded-2xl border border-primary/70 bg-card p-4 shadow-[0_0_38px_-10px_hsl(var(--primary))] sm:p-6">
+            {latestDraw ? (
+              <>
+                <div className="mb-2 flex flex-col items-start justify-between gap-3 sm:flex-row">
+                  <h2 className="text-xl font-semibold">Latest Draw Results</h2>
+                  <div className="flex h-20 w-full items-center justify-center overflow-hidden rounded-lg border border-border/50 bg-background/50 p-1.5 sm:w-24">
+                    <Image
+                      src="/result.png"
+                      alt="Latest draw results"
+                      width={120}
+                      height={80}
+                      className="h-20 w-24 object-contain"
+                    />
+                  </div>
                 </div>
-              </div>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Draw Date: {new Date(latestDraw.draw_date).toLocaleDateString()}
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Total Prize Pool: $
-                {Number(latestDraw.total_prize_pool ?? 0).toFixed(2)}
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {(latestDraw.winning_numbers ?? []).map(
-                  (number: number, index: number) => (
-                    <span
-                      key={`${number}-${index}`}
-                      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-primary/20 bg-primary/90 font-bold text-primary-foreground"
-                    >
-                      {number}
-                    </span>
-                  ),
-                )}
-              </div>
-            </>
-          ) : (
-            <div>
-              <div className="mb-2 flex items-start justify-between gap-3">
-                <h2 className="text-xl font-semibold">Latest Draw Results</h2>
-                <div className="flex h-20 w-24 items-center justify-center overflow-hidden rounded-lg border border-border/50 bg-background/50 p-1.5">
-                  <Image
-                    src="/result.png"
-                    alt="Latest draw results"
-                    width={120}
-                    height={80}
-                    className="h-20 w-24 object-contain"
-                  />
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Draw Date:{" "}
+                  {new Date(latestDraw.draw_date).toLocaleDateString()}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Total Prize Pool: $
+                  {Number(latestDraw.total_prize_pool ?? 0).toFixed(2)}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {(latestDraw.winning_numbers ?? []).map(
+                    (number: number, index: number) => (
+                      <span
+                        key={`${number}-${index}`}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-primary/20 bg-primary/90 font-bold text-primary-foreground"
+                      >
+                        {number}
+                      </span>
+                    ),
+                  )}
                 </div>
+              </>
+            ) : (
+              <div>
+                <div className="mb-2 flex flex-col items-start justify-between gap-3 sm:flex-row">
+                  <h2 className="text-xl font-semibold">Latest Draw Results</h2>
+                  <div className="flex h-20 w-full items-center justify-center overflow-hidden rounded-lg border border-border/50 bg-background/50 p-1.5 sm:w-24">
+                    <Image
+                      src="/result.png"
+                      alt="Latest draw results"
+                      width={120}
+                      height={80}
+                      className="h-20 w-24 object-contain"
+                    />
+                  </div>
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Waiting for the next official draw to be published. Submit
+                  your scores now!
+                </p>
               </div>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Waiting for the next official draw to be published. Submit your
-                scores now!
-              </p>
-            </div>
-          )}
+            )}
+          </section>
         </section>
-      </section>
+      </div>
 
       {errorMessage ? (
         <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
@@ -716,13 +753,13 @@ function DashboardPageContent() {
           Loading dashboard...
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-3">
           <section className="grid grid-cols-1 gap-6 md:col-span-3 md:grid-cols-3">
             <motion.article
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25 }}
-              className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm"
+              className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm ring-1 ring-primary/8 sm:p-6"
             >
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
                 Subscription Status
@@ -748,7 +785,7 @@ function DashboardPageContent() {
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
-              className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm"
+              className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm ring-1 ring-primary/8 sm:p-6"
             >
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
                 Quick Actions
@@ -779,12 +816,12 @@ function DashboardPageContent() {
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.35 }}
-              className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm"
+              className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm ring-1 ring-primary/8 sm:p-6"
             >
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
                 Total Winnings
               </p>
-              <p className="mt-4 text-4xl font-semibold tracking-tight text-primary">
+              <p className="mt-4 text-3xl font-semibold tracking-tight text-primary sm:text-4xl">
                 ${totalWinnings.toFixed(2)}
               </p>
               <p className="mt-2 text-sm text-muted-foreground">
@@ -797,7 +834,7 @@ function DashboardPageContent() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, delay: 0.1 }}
-            className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm md:col-span-2"
+            className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm ring-1 ring-primary/8 sm:p-6 md:col-span-2"
           >
             <h2 className="text-xl font-semibold">Recent Performance</h2>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -816,7 +853,7 @@ function DashboardPageContent() {
                       initial={{ opacity: 0, x: 10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.2, delay: 0.06 * index }}
-                      className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/35 px-3 py-3"
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-muted/35 px-3 py-3"
                     >
                       <div className="flex items-center gap-3">
                         <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-primary/25 bg-primary/90 text-sm font-semibold text-primary-foreground">
@@ -827,7 +864,7 @@ function DashboardPageContent() {
                         </span>
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {item.date_played}
+                        {new Date(item.date_played).toLocaleDateString()}
                       </span>
                     </motion.div>
                   </li>
@@ -841,7 +878,7 @@ function DashboardPageContent() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, delay: 0.2 }}
-            className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm md:col-span-1"
+            className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm ring-1 ring-primary/8 sm:p-6 md:col-span-1"
           >
             <h3 className="text-lg font-semibold">Payout Center</h3>
 

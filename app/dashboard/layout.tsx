@@ -212,7 +212,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </AnimatePresence>
 
       <main className="bg-background">
-        <div className="mx-auto max-w-6xl p-8">{children}</div>
+        <div className="mx-auto max-w-6xl p-4 sm:p-6 md:p-8">{children}</div>
       </main>
     </div>
   );

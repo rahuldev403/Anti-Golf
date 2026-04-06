@@ -180,7 +180,7 @@ export default function ScoresPage() {
 
   return (
     <section className="space-y-6">
-      <div className="pointer-events-none fixed right-4 top-4 z-90 flex w-[min(92vw,24rem)] flex-col gap-2">
+      <div className="pointer-events-none fixed left-3 right-3 top-3 z-90 flex flex-col gap-2 sm:left-auto sm:right-4 sm:top-4 sm:w-[min(92vw,24rem)]">
         <AnimatePresence>
           {errorMessage ? (
             <motion.div
@@ -236,7 +236,7 @@ export default function ScoresPage() {
         </AnimatePresence>
       </div>
 
-      <header className="relative overflow-hidden rounded-2xl border border-border/70 bg-linear-to-r from-primary/10 via-background to-chart-2/10 p-6 shadow-sm">
+      <header className="relative overflow-hidden rounded-2xl border border-border/70 bg-linear-to-r from-primary/10 via-background to-chart-2/10 p-4 shadow-sm sm:p-6">
         <div
           className="absolute -right-12 -top-14 h-40 w-40 rounded-full bg-primary/10 blur-2xl"
           aria-hidden="true"
@@ -259,9 +259,9 @@ export default function ScoresPage() {
         </div>
       </header>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2 lg:gap-8">
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-          <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm sm:p-7">
+          <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-7">
             <div className="space-y-7">
               <div className="text-center">
                 <p className="mb-4 text-sm font-medium text-muted-foreground">
@@ -272,7 +272,7 @@ export default function ScoresPage() {
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ duration: 0.2 }}
-                  className="text-8xl font-black tracking-tighter text-primary"
+                  className="text-6xl font-black tracking-tighter text-primary sm:text-8xl"
                 >
                   {scoreInput}
                 </motion.div>
@@ -396,7 +396,7 @@ export default function ScoresPage() {
           </motion.button>
         </form>
 
-        <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
+        <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-6">
           <h2 className="mb-1 text-xl font-semibold">Recent Performance</h2>
           <p className="mb-6 text-sm text-muted-foreground">
             Your five latest rounds in timeline view.
@@ -409,8 +409,8 @@ export default function ScoresPage() {
               </p>
             </div>
           ) : (
-            <div className="relative space-y-6">
-              <div className="absolute bottom-0 left-5 top-0 w-0.5 bg-primary/35" />
+            <div className="relative space-y-5 sm:space-y-6">
+              <div className="absolute bottom-0 left-4 top-0 w-0.5 bg-primary/35 sm:left-5" />
 
               {scores.map((score, idx) => (
                 <motion.div
@@ -418,9 +418,9 @@ export default function ScoresPage() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: idx * 0.08 }}
-                  className="relative pl-16"
+                  className="relative pl-12 sm:pl-16"
                 >
-                  <motion.div className="absolute left-0 top-1.5 h-10 w-10 rounded-full border border-border/50 bg-primary/95">
+                  <motion.div className="absolute left-0 top-1.5 h-8 w-8 rounded-full border border-border/50 bg-primary/95 sm:h-10 sm:w-10">
                     <div className="flex h-full w-full items-center justify-center text-sm font-bold text-primary-foreground">
                       {score.score}
                     </div>
@@ -428,9 +428,9 @@ export default function ScoresPage() {
 
                   <motion.div
                     whileHover={{ x: 4 }}
-                    className="cursor-pointer rounded-lg border border-border/70 bg-background/70 p-4 transition hover:border-primary/35"
+                    className="cursor-pointer rounded-lg border border-border/70 bg-background/70 p-3 transition hover:border-primary/35 sm:p-4"
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
                         <p className="text-sm text-muted-foreground">
                           {new Date(score.date_played).toLocaleDateString(

@@ -34,6 +34,7 @@ export default function ActiveDrawStatus({
 }: ActiveDrawStatusProps) {
   const safeScoreCount = clampScoreCount(scoreCount);
   const remainingScores = Math.max(0, 5 - safeScoreCount);
+  const qualificationProgress = Math.round((safeScoreCount / 5) * 100);
 
   const handleViewPlans = () => {
     const billingSection = document.getElementById("billing-section");
@@ -60,7 +61,7 @@ export default function ActiveDrawStatus({
       initial={{ opacity: 0, y: -24 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: "easeOut" }}
-      className="overflow-hidden rounded-2xl border border-primary/50 bg-linear-to-br from-sidebar to-background p-6 shadow-[0_0_35px_-12px_hsl(var(--primary))]"
+      className="overflow-hidden rounded-2xl border border-primary/50 bg-linear-to-br from-sidebar to-background p-4 shadow-[0_0_35px_-12px_hsl(var(--primary))] sm:p-6"
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -82,7 +83,7 @@ export default function ActiveDrawStatus({
           </p>
         </div>
 
-        <div className="flex h-20 w-24 items-center justify-center overflow-hidden rounded-lg border border-border/50 bg-background/50 p-1.5">
+        <div className="flex h-20 w-full items-center justify-center overflow-hidden rounded-lg border border-border/50 bg-background/50 p-1.5 sm:w-24">
           <Image
             src="/draw1.png"
             alt="Upcoming monthly draw"
@@ -105,7 +106,7 @@ export default function ActiveDrawStatus({
               <button
                 type="button"
                 onClick={handleViewPlans}
-                className="mt-3 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:brightness-110"
+                className="mt-3 w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:brightness-110 sm:w-auto"
               >
                 View Subscription Plans
               </button>
@@ -124,10 +125,22 @@ export default function ActiveDrawStatus({
                 month's draw. You currently have {safeScoreCount}. Log{" "}
                 {remainingScores} more scores!
               </p>
+              <div className="mt-3 rounded-lg border border-accent/35 bg-background/55 p-3">
+                <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Qualification progress</span>
+                  <span>{qualificationProgress}%</span>
+                </div>
+                <progress
+                  value={safeScoreCount}
+                  max={5}
+                  aria-label="Draw qualification progress"
+                  className="h-2 w-full overflow-hidden rounded-full [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-accent [&::-moz-progress-bar]:rounded-full [&::-moz-progress-bar]:bg-accent"
+                />
+              </div>
               <button
                 type="button"
                 onClick={handleLogScore}
-                className="mt-3 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition hover:brightness-110"
+                className="mt-3 w-full rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition hover:brightness-110 sm:w-auto"
               >
                 Log a Score Now
               </button>
@@ -137,13 +150,19 @@ export default function ActiveDrawStatus({
       ) : null}
 
       {isSubscribed && safeScoreCount === 5 ? (
-        <div className="mt-6 rounded-xl border border-chart-3/40 5 p-4">
+        <div className="mt-6 rounded-xl border border-chart-3/40 bg-chart-3/12 p-4">
           <div className="flex items-start gap-3">
             <CheckCircle2 className="mt-0.5 h-7 w-7 text-primary" />
-            <p className="text-sm font-semibold text-primary">
-              You are fully qualified! Your latest 5 scores are locked in for
-              the upcoming draw.
-            </p>
+            <div>
+              <p className="text-sm font-semibold text-primary">
+                You are fully qualified! Your latest 5 scores are locked in for
+                the upcoming draw.
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                You can still keep logging new rounds from the Score page to
+                maintain your momentum.
+              </p>
+            </div>
           </div>
         </div>
       ) : null}

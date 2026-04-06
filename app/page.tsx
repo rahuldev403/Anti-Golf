@@ -1,11 +1,20 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { LockKeyhole, Mail, X } from "lucide-react";
+import {
+  ArrowUpRight,
+  HeartHandshake,
+  LockKeyhole,
+  ShieldCheck,
+  Target,
+  Mail,
+  X,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient as createSupabaseClient } from "../utils/supabase/client";
 
@@ -274,6 +283,7 @@ export default function Page() {
       ? `${featuredCharity.description.slice(0, 219).trimEnd()}...`
       : featuredCharity.description
     : "This impact partner is transforming lives through practical, measurable programs that deserve your support.";
+  const currentYear = new Date().getFullYear();
 
   const openAuthModal = () => {
     setAuthError(null);
@@ -519,7 +529,13 @@ export default function Page() {
                 className="relative flex items-center px-6 pb-8 pt-16 sm:px-8 lg:px-10 lg:py-12"
               >
                 <div className="absolute -left-16 top-12 hidden h-40 w-40 rounded-full bg-primary/25 blur-3xl lg:block" />
-                <div className="absolute bottom-8 right-8 hidden h-28 w-28 rounded-full border border-primary/25 bg-primary/10 backdrop-blur-sm lg:block" />
+                <div className="pointer-events-none absolute bottom-8 right-8 hidden h-28 w-28 overflow-hidden rounded-full border border-primary/25 bg-primary/10 backdrop-blur-sm lg:block">
+                  <DotLottieReact
+                    src="https://lottie.host/b1cb87a1-21ba-4d7c-bc49-0ff8943aa9d7/wugHSTaHd6.lottie"
+                    loop
+                    autoplay
+                  />
+                </div>
 
                 <div className="relative w-full space-y-4">
                   <motion.p
@@ -626,6 +642,133 @@ export default function Page() {
           </div>
         </motion.div>
       </section>
+
+      <footer className="mx-auto mb-8 w-full max-w-7xl px-4 sm:px-6 md:px-10">
+        <div className="relative overflow-hidden rounded-3xl border border-border/70 bg-card/70 p-4 backdrop-blur-sm sm:p-6 lg:p-8">
+          <div
+            className="pointer-events-none absolute -left-20 top-1/2 h-64 w-64 -translate-y-1/2 rounded-full bg-primary/10 blur-3xl"
+            aria-hidden="true"
+          />
+          <div
+            className="pointer-events-none absolute -right-14 -top-20 h-56 w-56 rounded-full bg-accent/20 blur-3xl"
+            aria-hidden="true"
+          />
+
+          <div className="relative z-10 grid grid-cols-1 gap-6 lg:grid-cols-[1.2fr_1fr] lg:gap-8">
+            <div className="space-y-4">
+              <div className="inline-flex items-center gap-3 rounded-full border border-primary/25 bg-background/60 px-3 py-1.5">
+                <Image
+                  src="/logoV1.png"
+                  alt="Golf Impact logo"
+                  width={28}
+                  height={28}
+                  className="rounded-md"
+                />
+                <span className="text-xs font-semibold tracking-[0.15em] text-primary uppercase">
+                  Golf Impact Platform
+                </span>
+              </div>
+
+              <h3 className="text-2xl font-semibold leading-tight text-foreground sm:text-3xl">
+                Better rounds. Bigger impact.
+              </h3>
+              <p className="max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+                Join a performance-driven community where your game progress and
+                subscription contributions help fund verified causes every
+                month.
+              </p>
+
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <div className="rounded-xl border border-border/60 bg-background/60 p-3">
+                  <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                    <Target className="h-4 w-4" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Track</p>
+                  <p className="text-sm font-semibold text-foreground">
+                    Progress-led scoring
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-background/60 p-3">
+                  <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-chart-3/20 text-chart-3">
+                    <HeartHandshake className="h-4 w-4" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Support</p>
+                  <p className="text-sm font-semibold text-foreground">
+                    Verified charities
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-background/60 p-3">
+                  <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-accent/20 text-accent-foreground">
+                    <ShieldCheck className="h-4 w-4" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Secure</p>
+                  <p className="text-sm font-semibold text-foreground">
+                    Protected workflow
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border/60 bg-background/60 p-4 sm:p-5">
+              <p className="text-xs font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+                Quick Access
+              </p>
+
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <Link
+                  href="/charities"
+                  className="inline-flex items-center justify-between rounded-lg border border-border/70 bg-card px-3 py-2 text-sm font-medium text-foreground transition hover:border-primary/40 hover:bg-primary/5"
+                >
+                  Explore Charities
+                  <ArrowUpRight className="h-4 w-4" />
+                </Link>
+                <Link
+                  href="/dashboard/billing"
+                  className="inline-flex items-center justify-between rounded-lg border border-border/70 bg-card px-3 py-2 text-sm font-medium text-foreground transition hover:border-primary/40 hover:bg-primary/5"
+                >
+                  Plans & Billing
+                  <ArrowUpRight className="h-4 w-4" />
+                </Link>
+                <button
+                  type="button"
+                  onClick={openAuthModal}
+                  className="inline-flex items-center justify-between rounded-lg border border-border/70 bg-card px-3 py-2 text-left text-sm font-medium text-foreground transition hover:border-primary/40 hover:bg-primary/5"
+                >
+                  Create Account
+                  <ArrowUpRight className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    window.scrollTo({ top: 0, behavior: "smooth" })
+                  }
+                  className="inline-flex items-center justify-between rounded-lg border border-border/70 bg-card px-3 py-2 text-left text-sm font-medium text-foreground transition hover:border-primary/40 hover:bg-primary/5"
+                >
+                  Back To Top
+                  <ArrowUpRight className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="mt-4 rounded-xl border border-primary/25 bg-primary/10 p-3">
+                <p className="text-xs uppercase tracking-[0.14em] text-primary">
+                  Next Draw Window
+                </p>
+                <p className="mt-1 text-sm text-foreground">
+                  Keep entering rounds this month to stay eligible for upcoming
+                  prize draws.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative z-10 mt-6 flex flex-col gap-3 border-t border-border/70 pt-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+            <p>Copyright {currentYear} Golf Impact. All rights reserved.</p>
+            <p className="text-left sm:text-right">
+              Built for measurable performance and measurable contribution.
+            </p>
+          </div>
+        </div>
+      </footer>
 
       {isAuthModalOpen ? (
         <div

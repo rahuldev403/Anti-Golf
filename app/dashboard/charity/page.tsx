@@ -129,7 +129,7 @@ export default function CharityPage() {
 
   return (
     <section className="space-y-6">
-      <header className="relative overflow-hidden rounded-2xl border border-border/70 bg-linear-to-r from-primary/10 via-background to-chart-2/10 p-6 shadow-sm">
+      <header className="relative overflow-hidden rounded-2xl border border-border/70 bg-linear-to-r from-primary/10 via-background to-chart-2/10 p-4 shadow-sm sm:p-6">
         <div
           className="absolute -right-12 -top-14 h-40 w-40 rounded-full bg-primary/10 blur-2xl"
           aria-hidden="true"

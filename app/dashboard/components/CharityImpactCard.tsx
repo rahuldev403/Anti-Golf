@@ -26,7 +26,7 @@ export default function CharityImpactCard({
   const milestoneValues = [10, 20, 30, 40, 50];
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
+    <article className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm ring-1 ring-primary/8">
       <div className="grid grid-cols-1 lg:grid-cols-[40%_60%]">
         <div className="relative h-56 lg:h-full">
           <CharityImage
@@ -40,7 +40,7 @@ export default function CharityImpactCard({
           </div>
         </div>
 
-        <div className="p-6 lg:p-8">
+        <div className="p-4 sm:p-6 lg:p-8">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
@@ -49,10 +49,18 @@ export default function CharityImpactCard({
               <h3 className="mt-2 text-2xl font-semibold leading-tight">
                 You are currently funding {resolvedCharityName}.
               </h3>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className="rounded-full border border-border/70 bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                  Min 10%
+                </span>
+                <span className="rounded-full border border-border/70 bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                  Max 50%
+                </span>
+              </div>
             </div>
             <div className="rounded-xl border border-primary/25 bg-primary/10 px-3 py-2 text-right">
               <p className="text-xs text-muted-foreground">Contribution</p>
-              <p className="text-lg font-semibold text-primary">
+              <p className="text-2xl font-semibold leading-none text-primary">
                 {safePercent}%
               </p>
             </div>
@@ -129,13 +137,18 @@ export default function CharityImpactCard({
                 </button>
               ))}
             </div>
+
+            <p className="mt-3 text-xs text-muted-foreground">
+              Tip: Higher contribution percentages increase your monthly support
+              impact for this partner.
+            </p>
           </div>
 
           <button
             type="button"
             onClick={onSave}
             disabled={isSaving}
-            className="mt-5 inline-flex items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           >
             {isSaving ? "Saving..." : "Save Contribution"}
           </button>

@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Search, ArrowLeft } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { CharitiesFooter } from "./components/charities-footer";
-import { createClient as createSupabaseClient } from "../../utils/supabase/client";
 import CharityImage from "../components/CharityImage";
 
 type Charity = {
@@ -58,47 +57,39 @@ export default function CharityDirectoryPage() {
 
   useEffect(() => {
     const loadCharities = async () => {
-      let supabase;
-      try {
-        supabase = createSupabaseClient();
-      } catch {
-        setErrorMessage("Supabase is not configured.");
-        setIsLoading(false);
-        return;
-      }
-
       setIsLoading(true);
       setErrorMessage(null);
+      try {
+        const response = await fetch("/api/public/charities", {
+          method: "GET",
+        });
 
-      const withCategory = await supabase
-        .from("charities")
-        .select("id, name, description, image_url, category")
-        .order("name", { ascending: true });
+        const payload = (await response.json()) as {
+          success?: boolean;
+          error?: string;
+          details?: string;
+          charities?: Charity[];
+        };
 
-      if (!withCategory.error) {
-        setCharities((withCategory.data ?? []) as Charity[]);
+        if (
+          !response.ok ||
+          !payload.success ||
+          !Array.isArray(payload.charities)
+        ) {
+          const details = payload.details ? ` (${payload.details})` : "";
+          throw new Error(
+            (payload.error ?? "Failed to load charities.") + details,
+          );
+        }
+
+        setCharities(payload.charities);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Failed to load charities.";
+        setErrorMessage(message);
+      } finally {
         setIsLoading(false);
-        return;
       }
-
-      const withoutCategory = await supabase
-        .from("charities")
-        .select("id, name, description, image_url")
-        .order("name", { ascending: true });
-
-      if (withoutCategory.error) {
-        setErrorMessage(
-          `Failed to load charities: ${withoutCategory.error.message}`,
-        );
-        setIsLoading(false);
-        return;
-      }
-
-      const fallbackData = (withoutCategory.data ?? []).map(
-        (item: Omit<Charity, "category">) => ({ ...item, category: null }),
-      );
-      setCharities(fallbackData);
-      setIsLoading(false);
     };
 
     void loadCharities();
@@ -139,7 +130,7 @@ export default function CharityDirectoryPage() {
   };
 
   return (
-    <main className="min-h-screen bg-background px-4 py-10 text-foreground sm:px-6 lg:px-10">
+    <main className="min-h-screen bg-background px-3 py-8 text-foreground sm:px-6 sm:py-10 lg:px-10">
       <div className="mx-auto w-full max-w-7xl space-y-8">
         <div className="mb-4">
           <Link
@@ -150,11 +141,11 @@ export default function CharityDirectoryPage() {
             Back to Home
           </Link>
         </div>
-        <header className="rounded-2xl border border-primary/30 bg-linear-to-br from-primary/10 via-accent/10 to-card p-6 sm:p-8">
+        <header className="rounded-2xl border border-primary/30 bg-linear-to-br from-primary/10 via-accent/10 to-card p-4 sm:p-8">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/85">
             Public Charity Directory
           </p>
-          <h1 className="mt-3 text-3xl font-semibold leading-tight sm:text-4xl">
+          <h1 className="mt-3 text-2xl font-semibold leading-tight sm:text-4xl">
             Discover Verified Causes Worth Backing
           </h1>
           <p className="mt-3 max-w-3xl text-sm text-muted-foreground sm:text-base">
@@ -179,7 +170,7 @@ export default function CharityDirectoryPage() {
               />
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex max-h-40 flex-wrap gap-2 overflow-y-auto pr-1">
               {categories.map((category) => {
                 const isActive = category === activeCategory;
                 return (
@@ -275,7 +266,7 @@ export default function CharityDirectoryPage() {
 
                     <Link
                       href={`/charities/${charity.id}`}
-                      className="inline-flex items-center justify-center rounded-lg bg-linear-to-r from-primary to-accent px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:brightness-110"
+                      className="inline-flex w-full items-center justify-center rounded-lg bg-linear-to-r from-primary to-accent px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:brightness-110 sm:w-auto"
                     >
                       View Impact Profile
                     </Link>

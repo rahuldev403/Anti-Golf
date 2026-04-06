@@ -933,7 +933,7 @@ export default function AdminDashboardPage() {
 
   if (isCheckingAccess) {
     return (
-      <main className="min-h-screen bg-background p-6 text-foreground">
+      <main className="min-h-screen bg-background p-4 text-foreground sm:p-6">
         <div className="mx-auto max-w-6xl rounded-2xl border border-border bg-card p-6">
           Checking admin access...
         </div>
@@ -943,7 +943,7 @@ export default function AdminDashboardPage() {
 
   if (!isAdmin) {
     return (
-      <main className="min-h-screen bg-background p-6 text-foreground">
+      <main className="min-h-screen bg-background p-4 text-foreground sm:p-6">
         <div className="mx-auto max-w-6xl rounded-2xl border border-destructive/40 bg-destructive/10 p-6 text-destructive">
           Access denied. This page is only available to admins.
         </div>
@@ -953,7 +953,7 @@ export default function AdminDashboardPage() {
 
   return (
     <main className="min-h-screen bg-background p-4 text-foreground sm:p-6">
-      <div className="pointer-events-none fixed right-4 top-4 z-90 flex w-[min(92vw,26rem)] flex-col gap-2">
+      <div className="pointer-events-none fixed left-3 right-3 top-3 z-90 flex flex-col gap-2 sm:left-auto sm:right-4 sm:top-4 sm:w-[min(92vw,26rem)]">
         <AnimatePresence>
           {errorMessage ? (
             <motion.div
@@ -1014,7 +1014,7 @@ export default function AdminDashboardPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h1 className="text-xl font-semibold">Admin Panel</h1>
 
-            <nav className="inline-flex flex-wrap gap-2 rounded-full border border-border/60 bg-muted/50 p-1">
+            <nav className="-mx-1 flex w-full gap-2 overflow-x-auto rounded-full border border-border/60 bg-muted/50 p-1 sm:mx-0 sm:w-auto sm:flex-wrap">
               {[
                 { key: "overview" as const, label: "Control Center" },
                 { key: "users" as const, label: "Manage Users" },
@@ -1025,7 +1025,7 @@ export default function AdminDashboardPage() {
                   key={tab.key}
                   type="button"
                   onClick={() => setActiveTab(tab.key)}
-                  className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                  className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition ${
                     activeTab === tab.key
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-muted"
@@ -1048,7 +1048,7 @@ export default function AdminDashboardPage() {
               transition={{ duration: 0.2, ease: "easeOut" }}
               className="space-y-4"
             >
-              <div className="rounded-2xl border border-border bg-card p-5">
+              <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
                 <h2 className="text-xl font-semibold">Run Simulation</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Run and publish monthly draw simulations.
@@ -1167,7 +1167,7 @@ export default function AdminDashboardPage() {
                       </div>
 
                       {randomSelectionMode === "manual" ? (
-                        <div className="mt-3 grid grid-cols-5 gap-2">
+                        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
                           {manualRandomNumbers.map((value, index) => (
                             <input
                               key={`manual-draw-${index}`}
@@ -1191,12 +1191,12 @@ export default function AdminDashboardPage() {
                   ) : null}
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-3">
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                   <button
                     type="button"
                     onClick={handleRunDraw}
                     disabled={isRunningDraw}
-                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:brightness-110 disabled:opacity-60"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:brightness-110 disabled:opacity-60 sm:w-auto"
                   >
                     {isRunningDraw ? (
                       <>
@@ -1216,7 +1216,7 @@ export default function AdminDashboardPage() {
                       !latestDraw ||
                       latestDraw.status === "published"
                     }
-                    className="rounded-lg bg-chart-3 px-4 py-2 text-sm font-bold text-black dark:text-black hover:brightness-110 disabled:opacity-60"
+                    className="w-full rounded-lg bg-chart-3 px-4 py-2 text-sm font-bold text-black dark:text-black hover:brightness-110 disabled:opacity-60 sm:w-auto"
                   >
                     {isPublishingDraw
                       ? "Publishing Official Results..."
@@ -1442,14 +1442,14 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-border bg-card p-5">
+              <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
                 <h2 className="text-xl font-semibold">Pending Verifications</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Review pending winners and validate uploaded proof images.
                 </p>
 
-                <div className="mt-4 overflow-x-auto">
-                  <table className="min-w-full text-sm">
+                <div className="mt-4 overflow-x-auto rounded-xl border border-border/60">
+                  <table className="min-w-190 text-sm sm:min-w-full">
                     <thead>
                       <tr className="border-b border-border text-left text-muted-foreground">
                         <th className="px-3 py-2 font-medium">Winner ID</th>
@@ -1495,7 +1495,7 @@ export default function AdminDashboardPage() {
                             )}
                           </td>
                           <td className="px-3 py-3">
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
                               <button
                                 type="button"
                                 disabled={processingWinnerId === winner.id}
@@ -1531,7 +1531,7 @@ export default function AdminDashboardPage() {
                 ) : null}
               </div>
 
-              <div className="rounded-2xl border border-border bg-card p-5">
+              <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
                 <h2 className="text-xl font-semibold">Winners Management</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   View full winners list and mark payouts as completed.
@@ -1542,8 +1542,8 @@ export default function AdminDashboardPage() {
                     No winners yet.
                   </p>
                 ) : (
-                  <div className="mt-4 overflow-x-auto">
-                    <table className="min-w-full text-sm">
+                  <div className="mt-4 overflow-x-auto rounded-xl border border-border/60">
+                    <table className="min-w-215 text-sm sm:min-w-full">
                       <thead>
                         <tr className="border-b border-border text-left text-muted-foreground">
                           <th className="px-3 py-2 font-medium">Winner</th>
@@ -1616,7 +1616,7 @@ export default function AdminDashboardPage() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-80 bg-black/50 p-4"
+                    className="fixed inset-0 z-80 bg-black/50 p-3 sm:p-4"
                     onClick={() => setIsRewardLogicOpen(false)}
                   >
                     <motion.div
@@ -1624,7 +1624,7 @@ export default function AdminDashboardPage() {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 12, scale: 0.98 }}
                       transition={{ duration: 0.2, ease: "easeOut" }}
-                      className="mx-auto mt-20 w-full max-w-lg rounded-2xl border border-primary/30 bg-card p-5 shadow-2xl"
+                      className="mx-auto mt-12 w-full max-w-lg rounded-2xl border border-primary/30 bg-card p-4 shadow-2xl sm:mt-20 sm:p-5"
                       onClick={(event) => event.stopPropagation()}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -1672,7 +1672,7 @@ export default function AdminDashboardPage() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-80 bg-black/50 p-4"
+                    className="fixed inset-0 z-80 bg-black/50 p-3 sm:p-4"
                     onClick={() => setIsDrawLogicOpen(false)}
                   >
                     <motion.div
@@ -1680,7 +1680,7 @@ export default function AdminDashboardPage() {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 12, scale: 0.98 }}
                       transition={{ duration: 0.2, ease: "easeOut" }}
-                      className="mx-auto mt-20 w-full max-w-lg rounded-2xl border border-primary/30 bg-card p-5 shadow-2xl"
+                      className="mx-auto mt-12 w-full max-w-lg rounded-2xl border border-primary/30 bg-card p-4 shadow-2xl sm:mt-20 sm:p-5"
                       onClick={(event) => event.stopPropagation()}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -1754,9 +1754,9 @@ export default function AdminDashboardPage() {
               />
 
               {selectedUserId ? (
-                <div className="rounded-2xl border border-border bg-card p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-base font-semibold">
+                <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <h3 className="text-base font-semibold break-all">
                       Latest 5 Scores for {selectedUserId}
                     </h3>
                     <button
@@ -1901,7 +1901,7 @@ export default function AdminDashboardPage() {
                         type="button"
                         onClick={handleSaveUserSettings}
                         disabled={isUpdatingUser}
-                        className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-60"
+                        className="w-full rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-60 sm:w-auto"
                       >
                         {isUpdatingUser
                           ? "Saving user..."

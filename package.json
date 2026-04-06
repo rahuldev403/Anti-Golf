@@ -11,6 +11,7 @@
     "seed:charities": "node scripts/seed-charities.mjs"
   },
   "dependencies": {
+    "@lottiefiles/dotlottie-react": "^0.18.10",
     "@supabase/ssr": "^0.9.0",
     "@supabase/supabase-js": "^2.57.4",
     "framer-motion": "^12.23.24",

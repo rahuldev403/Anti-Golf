@@ -32,19 +32,59 @@ export async function GET() {
       },
     });
 
-    const { data, error } = await serviceDb
+    const withCategory = await serviceDb
       .from("charities")
-      .select("id, name")
+      .select("id, name, description, image_url, category")
       .order("name", { ascending: true });
 
-    if (error) {
-      return jsonError("Failed to load charities.", 500, error.message);
+    let charities: Array<{
+      id: string;
+      name: string;
+      description: string | null;
+      image_url: string | null;
+      category: string | null;
+    }> | null = null;
+
+    if (!withCategory.error) {
+      charities =
+        (withCategory.data as Array<{
+          id: string;
+          name: string;
+          description: string | null;
+          image_url: string | null;
+          category: string | null;
+        }> | null) ?? [];
+    } else {
+      const withoutCategory = await serviceDb
+        .from("charities")
+        .select("id, name, description, image_url")
+        .order("name", { ascending: true });
+
+      if (withoutCategory.error) {
+        return jsonError(
+          "Failed to load charities.",
+          500,
+          withoutCategory.error.message,
+        );
+      }
+
+      charities = (
+        (withoutCategory.data ?? []) as Array<{
+          id: string;
+          name: string;
+          description: string | null;
+          image_url: string | null;
+        }>
+      ).map((item) => ({
+        ...item,
+        category: null,
+      }));
     }
 
     return NextResponse.json(
       {
         success: true,
-        charities: data ?? [],
+        charities: charities ?? [],
       },
       { status: 200 },
     );
