@@ -190,6 +190,26 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  a[href],
+  button,
+  [role="button"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  summary,
+  label[for],
+  select {
+    @apply cursor-pointer;
+  }
+
+  button:disabled,
+  [role="button"][aria-disabled="true"],
+  input:disabled,
+  select:disabled,
+  textarea:disabled {
+    @apply cursor-not-allowed;
+  }
 }
 
 /* Custom webkit scrollbar styling */
