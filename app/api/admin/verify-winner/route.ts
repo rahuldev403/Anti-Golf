@@ -114,7 +114,21 @@ export async function POST(request: Request) {
       );
     }
 
+    if (existingWinner.payment_status !== "pending") {
+      return jsonError(
+        "Only winners with pending payment status can be reviewed.",
+        400,
+      );
+    }
+
     if (action === "approve") {
+      if (!existingWinner.proof_image_url) {
+        return jsonError(
+          "Proof upload is required before approving a winner.",
+          400,
+        );
+      }
+
       const { data: approvedWinner, error: approveError } = await serviceDb
         .from("winners")
         .update({ payment_status: "paid" })

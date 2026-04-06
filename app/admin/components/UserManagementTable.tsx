@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 type UserItem = {
@@ -14,8 +14,7 @@ type UserItem = {
 
 type UserManagementTableProps = {
   users: UserItem[];
-  onViewScores?: (userId: string) => void;
-  loadingScoresForUser?: string | null;
+  onManageUser?: (userId: string) => void;
 };
 
 function formatCharityContribution(value: number | null | undefined): string {
@@ -28,8 +27,7 @@ function formatCharityContribution(value: number | null | undefined): string {
 
 export default function UserManagementTable({
   users,
-  onViewScores,
-  loadingScoresForUser = null,
+  onManageUser,
 }: UserManagementTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -69,7 +67,7 @@ export default function UserManagementTable({
   const endItem = Math.min(currentPage * pageSize, filteredUsers.length);
 
   return (
-    <section className="rounded-2xl border border-border/50 bg-card p-4 sm:p-5">
+    <section className="w-full rounded-2xl border border-border/50 bg-card p-4 sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-base font-semibold">User Management</h2>
@@ -97,8 +95,8 @@ export default function UserManagementTable({
         </label>
       </div>
 
-      <div className="mt-4 overflow-x-auto rounded-xl border border-border/50">
-        <table className="min-w-225 text-sm">
+      <div className="mt-4 w-full overflow-x-auto rounded-xl border border-border/50">
+        <table className="w-full min-w-full text-sm">
           <thead className="bg-muted/40 text-left text-muted-foreground">
             <tr>
               <th className="px-4 py-3 font-medium">User ID</th>
@@ -146,19 +144,16 @@ export default function UserManagementTable({
                       {formatCharityContribution(user.charity_percentage)}
                     </td>
                     <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() => onViewScores?.(user.id)}
-                        disabled={
-                          !onViewScores || loadingScoresForUser === user.id
-                        }
-                        className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-background px-3 py-1.5 text-sm font-medium transition hover:border-primary/60 hover:text-primary"
-                      >
-                        <Eye className="h-4 w-4" aria-hidden="true" />
-                        {loadingScoresForUser === user.id
-                          ? "Loading..."
-                          : "View Scores"}
-                      </button>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onManageUser?.(user.id)}
+                          disabled={!onManageUser}
+                          className="inline-flex items-center rounded-lg border border-primary/25 bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition hover:bg-primary/15 disabled:opacity-50"
+                        >
+                          Manage
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

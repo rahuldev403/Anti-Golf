@@ -51,53 +51,6 @@ function jsonSuccess(data: unknown) {
   });
 }
 
-async function verifyAdminRole(
-  accessToken: string,
-  supabaseUrl: string,
-  supabaseAnonKey: string,
-): Promise<{ valid: boolean; error?: string; userId?: string }> {
-  try {
-    const baseClient = createClient(supabaseUrl, supabaseAnonKey);
-    const {
-      data: { user },
-      error: authError,
-    } = await baseClient.auth.getUser(accessToken);
-
-    if (authError || !user) {
-      return { valid: false, error: "User is not authenticated." };
-    }
-
-    const authedDb = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      },
-    });
-
-    const { data: adminCheck, error: adminCheckError } = await authedDb
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (adminCheckError) {
-      return { valid: false, error: "Failed to verify admin role." };
-    }
-
-    if (adminCheck?.role !== "admin") {
-      return { valid: false, error: "Forbidden. Admin access is required." };
-    }
-
-    return { valid: true, userId: user.id };
-  } catch (error) {
-    return {
-      valid: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
-  }
-}
-
 function getServiceRoleClient(supabaseUrl: string) {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -113,36 +66,11 @@ function getServiceRoleClient(supabaseUrl: string) {
 export async function POST(request: Request) {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey =
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY;
-
-    if (!supabaseUrl || !supabaseAnonKey) {
+    if (!supabaseUrl) {
       return jsonError(
         "Supabase environment variables are not configured.",
         500,
       );
-    }
-
-    // Verify authorization header
-    const authHeader = request.headers.get("authorization") ?? "";
-    if (!authHeader.startsWith("Bearer ")) {
-      return jsonError("Missing or invalid Authorization header.", 401);
-    }
-
-    const accessToken = authHeader.slice(7).trim();
-    if (!accessToken) {
-      return jsonError("Missing bearer token.", 401);
-    }
-
-    // Verify admin role
-    const adminCheck = await verifyAdminRole(
-      accessToken,
-      supabaseUrl,
-      supabaseAnonKey,
-    );
-    if (!adminCheck.valid) {
-      return jsonError(adminCheck.error || "Admin verification failed.", 403);
     }
 
     // Parse request body
@@ -199,36 +127,11 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey =
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY;
-
-    if (!supabaseUrl || !supabaseAnonKey) {
+    if (!supabaseUrl) {
       return jsonError(
         "Supabase environment variables are not configured.",
         500,
       );
-    }
-
-    // Verify authorization header
-    const authHeader = request.headers.get("authorization") ?? "";
-    if (!authHeader.startsWith("Bearer ")) {
-      return jsonError("Missing or invalid Authorization header.", 401);
-    }
-
-    const accessToken = authHeader.slice(7).trim();
-    if (!accessToken) {
-      return jsonError("Missing bearer token.", 401);
-    }
-
-    // Verify admin role
-    const adminCheck = await verifyAdminRole(
-      accessToken,
-      supabaseUrl,
-      supabaseAnonKey,
-    );
-    if (!adminCheck.valid) {
-      return jsonError(adminCheck.error || "Admin verification failed.", 403);
     }
 
     // Parse request body
@@ -298,36 +201,11 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey =
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY;
-
-    if (!supabaseUrl || !supabaseAnonKey) {
+    if (!supabaseUrl) {
       return jsonError(
         "Supabase environment variables are not configured.",
         500,
       );
-    }
-
-    // Verify authorization header
-    const authHeader = request.headers.get("authorization") ?? "";
-    if (!authHeader.startsWith("Bearer ")) {
-      return jsonError("Missing or invalid Authorization header.", 401);
-    }
-
-    const accessToken = authHeader.slice(7).trim();
-    if (!accessToken) {
-      return jsonError("Missing bearer token.", 401);
-    }
-
-    // Verify admin role
-    const adminCheck = await verifyAdminRole(
-      accessToken,
-      supabaseUrl,
-      supabaseAnonKey,
-    );
-    if (!adminCheck.valid) {
-      return jsonError(adminCheck.error || "Admin verification failed.", 403);
     }
 
     // Parse request body

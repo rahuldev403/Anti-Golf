@@ -48,40 +48,17 @@ function getSelectedCharityName(value: CharityJoin): string | null {
   return value.name ?? null;
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey =
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY;
     const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRole) {
+    if (!supabaseUrl || !supabaseServiceRole) {
       return jsonError(
         "Supabase environment variables are not configured.",
         500,
-        "Set NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY (or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY), and SUPABASE_SERVICE_ROLE_KEY.",
+        "Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
       );
-    }
-
-    const authHeader = request.headers.get("authorization") ?? "";
-    if (!authHeader.startsWith("Bearer ")) {
-      return jsonError("Missing or invalid Authorization header.", 401);
-    }
-
-    const accessToken = authHeader.slice(7).trim();
-    if (!accessToken) {
-      return jsonError("Missing bearer token.", 401);
-    }
-
-    const baseClient = createClient(supabaseUrl, supabaseAnonKey);
-    const {
-      data: { user },
-      error: authError,
-    } = await baseClient.auth.getUser(accessToken);
-
-    if (authError || !user) {
-      return jsonError("Unauthorized", 401, authError?.message);
     }
 
     const serviceDb = createClient(supabaseUrl, supabaseServiceRole, {
@@ -90,20 +67,6 @@ export async function GET(request: Request) {
         persistSession: false,
       },
     });
-
-    const { data: userProfile, error: roleError } = await serviceDb
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (roleError) {
-      return jsonError("Failed to verify admin role.", 500, roleError.message);
-    }
-
-    if (userProfile?.role !== "admin") {
-      return jsonError("Unauthorized", 401);
-    }
 
     const { data: usersData, error: usersError } = await serviceDb
       .from("users")

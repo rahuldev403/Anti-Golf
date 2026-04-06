@@ -1,7 +1,5 @@
 # Anti Golf
 
-
-
 A modern golf challenge platform where players log scores, compete in draws, and support charities through subscriptions.
 
 ![Anti Golf App Screenshot](public/logo.png)
@@ -51,6 +49,7 @@ Copy `.env.example` values into your local `.env.local` and set real credentials
 NEXT_PUBLIC_SITE_URL=https://your-app.vercel.app
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+NEXT_PUBLIC_CHARITY_IMAGE_BUCKET=charity-media
 SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 STRIPE_SECRET_KEY=sk_live_or_test_key
 STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret

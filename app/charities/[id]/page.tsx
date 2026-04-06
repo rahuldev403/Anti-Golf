@@ -1,11 +1,11 @@
 "use client";
 
 import { motion } from "framer-motion";
-import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CharitiesFooter } from "../components/charities-footer";
 import { createClient as createSupabaseClient } from "../../../utils/supabase/client";
+import CharityImage from "../../components/CharityImage";
 
 type Charity = {
   id: string;
@@ -324,12 +324,11 @@ export default function CharityDetailPage() {
     <main className="min-h-screen bg-background text-foreground">
       <section className="relative h-[48vh] min-h-75 w-full sm:h-[56vh]">
         {charity.image_url ? (
-          <Image
+          <CharityImage
             src={charity.image_url}
             alt={charity.name}
-            fill
-            priority
-            className="object-cover"
+            loading="eager"
+            className="h-full w-full object-cover"
           />
         ) : (
           <div className="h-full w-full bg-linear-to-br from-primary/15 via-accent/10 to-card" />

@@ -1,8 +1,8 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
-import { Plus, Minus } from "lucide-react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Plus, Minus, X } from "lucide-react";
 import { createClient as createSupabaseClient } from "../../../utils/supabase/client";
 
 type ScoreRow = {
@@ -28,6 +28,7 @@ export default function ScoresPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const datePickerRef = useRef<HTMLInputElement | null>(null);
 
   const supabase = useMemo(() => {
     try {
@@ -36,6 +37,19 @@ export default function ScoresPage() {
       return null;
     }
   }, []);
+
+  const formattedDatePlayed = useMemo(() => {
+    const parsed = new Date(`${dateInput}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) {
+      return dateInput;
+    }
+
+    return parsed.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+    });
+  }, [dateInput]);
 
   useEffect(() => {
     const loadScores = async () => {
@@ -73,6 +87,24 @@ export default function ScoresPage() {
     void loadScores();
   }, [supabase]);
 
+  useEffect(() => {
+    if (!errorMessage) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => setErrorMessage(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [errorMessage]);
+
+  useEffect(() => {
+    if (!successMessage) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => setSuccessMessage(null), 3500);
+    return () => window.clearTimeout(timer);
+  }, [successMessage]);
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorMessage(null);
@@ -86,6 +118,11 @@ export default function ScoresPage() {
     const parsedScore = scoreInput;
     if (!Number.isInteger(parsedScore) || parsedScore < 1 || parsedScore > 45) {
       setErrorMessage("Score must be an integer between 1 and 45.");
+      return;
+    }
+
+    if (!dateInput || dateInput > todayIso) {
+      setErrorMessage("Date played cannot be in the future.");
       return;
     }
 
@@ -143,6 +180,62 @@ export default function ScoresPage() {
 
   return (
     <section className="space-y-6">
+      <div className="pointer-events-none fixed right-4 top-4 z-90 flex w-[min(92vw,24rem)] flex-col gap-2">
+        <AnimatePresence>
+          {errorMessage ? (
+            <motion.div
+              key={`scores-error-${errorMessage}`}
+              initial={{ opacity: 0, x: 16, y: -8 }}
+              animate={{ opacity: 1, x: 0, y: 0 }}
+              exit={{ opacity: 0, x: 16, y: -8 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="pointer-events-auto rounded-xl border border-destructive/40 bg-destructive/95 p-3 text-sm text-destructive-foreground shadow-lg"
+              role="alert"
+              aria-live="assertive"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <p>{errorMessage}</p>
+                <button
+                  type="button"
+                  onClick={() => setErrorMessage(null)}
+                  className="mt-0.5 rounded p-1 text-destructive-foreground/80 transition hover:bg-black/10 hover:text-destructive-foreground"
+                  aria-label="Close error notification"
+                  title="Close"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </motion.div>
+          ) : null}
+
+          {successMessage ? (
+            <motion.div
+              key={`scores-success-${successMessage}`}
+              initial={{ opacity: 0, x: 16, y: -8 }}
+              animate={{ opacity: 1, x: 0, y: 0 }}
+              exit={{ opacity: 0, x: 16, y: -8 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="pointer-events-auto rounded-xl border border-emerald-300/70 bg-emerald-600 p-3 text-sm text-white shadow-lg"
+              role="status"
+              aria-live="polite"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <p>{successMessage}</p>
+                <button
+                  type="button"
+                  onClick={() => setSuccessMessage(null)}
+                  className="mt-0.5 rounded p-1 text-white/80 transition hover:bg-white/10 hover:text-white"
+                  aria-label="Close success notification"
+                  title="Close"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      </div>
+
       <header className="relative overflow-hidden rounded-2xl border border-border/70 bg-linear-to-r from-primary/10 via-background to-chart-2/10 p-6 shadow-sm">
         <div
           className="absolute -right-12 -top-14 h-40 w-40 rounded-full bg-primary/10 blur-2xl"
@@ -165,25 +258,6 @@ export default function ScoresPage() {
           </p>
         </div>
       </header>
-
-      {errorMessage ? (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive"
-        >
-          {errorMessage}
-        </motion.div>
-      ) : null}
-      {successMessage ? (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="rounded-lg border border-chart-3/40 bg-chart-3/15 p-4 text-sm text-chart-3"
-        >
-          {successMessage}
-        </motion.div>
-      ) : null}
 
       <div className="grid gap-8 lg:grid-cols-2">
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
@@ -275,12 +349,38 @@ export default function ScoresPage() {
               <span className="mb-2 block text-sm font-medium text-foreground">
                 Date Played
               </span>
+              <div className="mt-1 flex items-center gap-3 rounded-lg border border-input bg-background p-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const picker = datePickerRef.current;
+                    if (!picker) {
+                      return;
+                    }
+
+                    if (typeof picker.showPicker === "function") {
+                      picker.showPicker();
+                    } else {
+                      picker.focus();
+                    }
+                  }}
+                  className="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition hover:brightness-110 sm:text-sm"
+                >
+                  Select Date
+                </button>
+                <span className="text-sm text-foreground">
+                  {formattedDatePlayed}
+                </span>
+              </div>
               <input
+                ref={datePickerRef}
                 type="date"
                 value={dateInput}
                 onChange={(event) => setDateInput(event.target.value)}
+                max={todayIso}
                 required
-                className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-1 focus:ring-primary/50"
+                aria-label="Date played"
+                className="sr-only"
               />
             </label>
           </div>

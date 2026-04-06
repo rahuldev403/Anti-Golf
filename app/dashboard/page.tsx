@@ -41,6 +41,9 @@ type PendingWinnerRow = {
   prize_amount: number;
   payment_status: "pending" | "paid";
   proof_image_url: string | null;
+  draw?: {
+    status?: string | null;
+  } | null;
 };
 
 type ScoreApiResponse = {
@@ -52,6 +55,9 @@ type ScoreApiResponse = {
 
 type WinnerAmountRow = {
   prize_amount: number;
+  draw?: {
+    status?: string | null;
+  } | null;
 };
 
 type SystemSettingsRow = {
@@ -93,6 +99,9 @@ function DashboardPageContent() {
   const [checkoutToastMessage, setCheckoutToastMessage] = useState<
     string | null
   >(null);
+  const [proofUploadToastMessage, setProofUploadToastMessage] = useState<
+    string | null
+  >(null);
 
   const supabase = useMemo(() => {
     try {
@@ -127,6 +136,18 @@ function DashboardPageContent() {
 
     return () => window.clearTimeout(timer);
   }, [checkoutToastMessage]);
+
+  useEffect(() => {
+    if (!proofUploadToastMessage) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setProofUploadToastMessage(null);
+    }, 4200);
+
+    return () => window.clearTimeout(timer);
+  }, [proofUploadToastMessage]);
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -184,17 +205,19 @@ function DashboardPageContent() {
           supabase
             .from("winners")
             .select(
-              "id, draw_id, match_type, prize_amount, payment_status, proof_image_url",
+              "id, draw_id, match_type, prize_amount, payment_status, proof_image_url, draw:draws!inner(status)",
             )
             .eq("user_id", user.id)
             .eq("payment_status", "pending")
+            .eq("draws.status", "published")
             .order("id", { ascending: false })
             .limit(1)
             .maybeSingle(),
           supabase
             .from("winners")
-            .select("prize_amount")
-            .eq("user_id", user.id),
+            .select("prize_amount, draw:draws!inner(status)")
+            .eq("user_id", user.id)
+            .eq("draws.status", "published"),
           supabase
             .from("draws")
             .select("*")
@@ -443,28 +466,36 @@ function DashboardPageContent() {
       return;
     }
 
-    const safeName = proofFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const filePath = `${userId}/${pendingWinner.id}-${Date.now()}-${safeName}`;
-
     try {
       setIsUploadingProof(true);
 
-      const { error: uploadError } = await supabase.storage
-        .from("winner-proofs")
-        .upload(filePath, proofFile, {
-          cacheControl: "3600",
-          upsert: false,
-        });
+      const formData = new FormData();
+      formData.append("file", proofFile);
+      formData.append("user_id", userId);
+      formData.append("winner_id", pendingWinner.id);
 
-      if (uploadError) {
-        throw new Error(uploadError.message);
+      const uploadResponse = await fetch("/api/winners/upload-proof", {
+        method: "POST",
+        body: formData,
+      });
+
+      const uploadPayload = (await uploadResponse.json()) as {
+        success?: boolean;
+        error?: string;
+        publicUrl?: string;
+      };
+
+      if (
+        !uploadResponse.ok ||
+        !uploadPayload.success ||
+        !uploadPayload.publicUrl
+      ) {
+        throw new Error(
+          uploadPayload.error ?? "Failed to upload verification proof.",
+        );
       }
 
-      const { data: publicUrlData } = supabase.storage
-        .from("winner-proofs")
-        .getPublicUrl(filePath);
-
-      const proofUrl = publicUrlData.publicUrl || filePath;
+      const proofUrl = uploadPayload.publicUrl;
 
       const { error: updateError } = await supabase
         .from("winners")
@@ -478,7 +509,7 @@ function DashboardPageContent() {
 
       setPendingWinner({ ...pendingWinner, proof_image_url: proofUrl });
       setProofFile(null);
-      setSuccessMessage("Verification proof uploaded successfully.");
+      setProofUploadToastMessage("Verification proof uploaded successfully.");
     } catch (error) {
       const message =
         error instanceof Error
@@ -493,7 +524,9 @@ function DashboardPageContent() {
   const subscriptionLabel =
     subscription?.status === "active" ? "Active" : "Inactive";
   const isSubscriptionActive = subscription?.status === "active";
-  const hasPendingWinner = pendingWinner?.payment_status === "pending";
+  const hasPendingWinner =
+    pendingWinner?.payment_status === "pending" &&
+    !pendingWinner?.proof_image_url;
   const isLatestDrawWinner = Boolean(
     latestDraw && pendingWinner && pendingWinner.draw_id === latestDraw.id,
   );
@@ -507,13 +540,12 @@ function DashboardPageContent() {
         </div>
       ) : null}
 
-      <WinnerVerificationAlert
-        isVisible={Boolean(hasPendingWinner)}
-        pendingPrizeAmount={pendingWinner?.prize_amount}
-        isUploading={isUploadingProof}
-        onFileChange={setProofFile}
-        onSubmit={handleProofUpload}
-      />
+      {proofUploadToastMessage ? (
+        <div className="fixed bottom-24 right-4 z-50 max-w-sm rounded-xl border border-emerald-300/60 bg-emerald-600/95 px-4 py-3 text-sm text-white shadow-xl backdrop-blur">
+          <p className="font-semibold">Proof Submitted</p>
+          <p className="mt-1 text-white/90">{proofUploadToastMessage}</p>
+        </div>
+      ) : null}
 
       {/* Illustration Hero Section */}
       <motion.div
@@ -563,12 +595,22 @@ function DashboardPageContent() {
         </div>
       </motion.div>
 
+      <WinnerVerificationAlert
+        isVisible={Boolean(hasPendingWinner)}
+        pendingPrizeAmount={pendingWinner?.prize_amount}
+        isUploading={isUploadingProof}
+        selectedFileName={proofFile?.name ?? null}
+        selectedFileSizeBytes={proofFile?.size ?? null}
+        onFileChange={setProofFile}
+        onSubmit={handleProofUpload}
+      />
+
       {/* Browse Charities Card */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.1 }}
-        className="rounded-2xl border border-accent/40 bg-gradient-to-r from-accent/10 to-primary/5 p-6 shadow-sm"
+        className="rounded-2xl border border-accent/40 bg-linear-to-r from-accent/10 to-primary/5 p-6 shadow-sm"
       >
         <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div>
@@ -804,25 +846,45 @@ function DashboardPageContent() {
             <h3 className="text-lg font-semibold">Payout Center</h3>
 
             {latestDraw && isLatestDrawWinner ? (
-              <div className="mt-3 space-y-3">
-                <p className="text-lg font-bold text-chart-2">
-                  🎉 Congratulations! You matched {pendingWinner?.match_type}{" "}
-                  numbers and won ${pendingWinner?.prize_amount}!
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Verification is pending. Use the alert at the top of the
-                  dashboard to submit your proof.
-                </p>
-                {pendingWinner?.proof_image_url ? (
-                  <a
-                    href={pendingWinner.proof_image_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex font-medium text-primary hover:text-primary/80"
-                  >
-                    View uploaded proof
-                  </a>
-                ) : null}
+              <div className="mt-3 space-y-4">
+                <div className="rounded-xl border border-emerald-300/40 bg-linear-to-br from-emerald-500/15 via-background to-primary/10 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                    Winning Draw Confirmed
+                  </p>
+                  <h4 className="mt-1 text-lg font-bold text-foreground">
+                    You matched {pendingWinner?.match_type} numbers
+                  </h4>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Prize amount:
+                    <span className="ml-1 font-semibold text-foreground">
+                      ${Number(pendingWinner?.prize_amount ?? 0).toFixed(2)}
+                    </span>
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+                  <p className="text-sm text-muted-foreground">
+                    {pendingWinner?.proof_image_url
+                      ? "Your proof has been submitted and is awaiting final admin review."
+                      : "Verification is pending. Submit your proof using the verification card below Dashboard Overview to complete payout processing."}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center rounded-full border border-amber-300/40 bg-amber-400/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                    Payout Status: Pending
+                  </span>
+                  {pendingWinner?.proof_image_url ? (
+                    <a
+                      href={pendingWinner.proof_image_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary transition hover:bg-primary/15"
+                    >
+                      View Uploaded Proof
+                    </a>
+                  ) : null}
+                </div>
               </div>
             ) : latestDraw ? (
               <div className="mt-3 space-y-3">

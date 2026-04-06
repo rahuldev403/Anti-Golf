@@ -1,12 +1,12 @@
 "use client";
 
 import { motion } from "framer-motion";
-import Image from "next/image";
 import Link from "next/link";
 import { Search, ArrowLeft } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { CharitiesFooter } from "./components/charities-footer";
 import { createClient as createSupabaseClient } from "../../utils/supabase/client";
+import CharityImage from "../components/CharityImage";
 
 type Charity = {
   id: string;
@@ -248,11 +248,10 @@ export default function CharityDirectoryPage() {
                 >
                   <div className="relative h-48 overflow-hidden bg-muted">
                     {charity.image_url ? (
-                      <Image
+                      <CharityImage
                         src={charity.image_url}
                         alt={charity.name}
-                        fill
-                        className="object-cover transition duration-300 group-hover:scale-105"
+                        className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                       />
                     ) : (
                       <div className="flex h-full items-center justify-center text-sm text-muted-foreground">

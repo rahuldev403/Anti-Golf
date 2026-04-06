@@ -49,10 +49,24 @@ export async function GET(request: Request) {
   } = await supabase.auth.getUser();
 
   if (user) {
+    const metadata = (user.user_metadata ?? {}) as Record<string, unknown>;
+    const selectedCharityId =
+      typeof metadata.selected_charity_id === "string" &&
+      metadata.selected_charity_id.trim().length > 0
+        ? metadata.selected_charity_id.trim()
+        : null;
+
+    const rawContribution = Number(metadata.charity_percentage ?? 10);
+    const safeContribution = Number.isFinite(rawContribution)
+      ? Math.min(50, Math.max(10, Math.round(rawContribution)))
+      : 10;
+
     await supabase.from("users").upsert(
       {
         id: user.id,
         role: "user",
+        selected_charity_id: selectedCharityId,
+        charity_percentage: safeContribution,
       },
       {
         onConflict: "id",

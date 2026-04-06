@@ -10,6 +10,26 @@ type ScoreRow = {
   created_at: string | null;
 };
 
+type DeleteSimulatedDrawBody = {
+  draw_id?: unknown;
+};
+
+type SimulateDrawBody = {
+  draw_mode?: unknown;
+  algorithm_weight?: unknown;
+  random_selection_mode?: unknown;
+  manual_numbers?: unknown;
+};
+
+type AlgorithmWeight = "most_frequent" | "least_frequent";
+type RandomSelectionMode = "automated" | "manual";
+
+const MONTHLY_SUBSCRIPTION_PRICE = 10;
+const PRIZE_POOL_CONTRIBUTION_PORTION = 0.5;
+const POOL_SHARE_MATCH_5 = 0.4;
+const POOL_SHARE_MATCH_4 = 0.35;
+const POOL_SHARE_MATCH_3 = 0.25;
+
 function jsonError(message: string, status: number, details?: unknown) {
   return NextResponse.json(
     {
@@ -53,6 +73,72 @@ function generateUniqueDrawNumbers(
   }
 
   return Array.from(values).sort((a, b) => a - b);
+}
+
+function pickWeightedNumber(candidates: number[], weights: number[]): number {
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+
+  if (totalWeight <= 0) {
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
+
+  const randomPoint = Math.random() * totalWeight;
+  let runningWeight = 0;
+
+  for (let index = 0; index < candidates.length; index += 1) {
+    runningWeight += weights[index];
+    if (randomPoint <= runningWeight) {
+      return candidates[index];
+    }
+  }
+
+  return candidates[candidates.length - 1];
+}
+
+function generateAlgorithmBasedDrawNumbers(
+  scores: ScoreRow[],
+  algorithmWeight: AlgorithmWeight,
+): number[] {
+  const frequencyMap = new Map<number, number>();
+
+  for (const row of scores) {
+    if (typeof row.score !== "number" || Number.isNaN(row.score)) {
+      continue;
+    }
+
+    if (row.score < 1 || row.score > 45) {
+      continue;
+    }
+
+    const current = frequencyMap.get(row.score) ?? 0;
+    frequencyMap.set(row.score, current + 1);
+  }
+
+  const maxFrequency = Math.max(...Array.from(frequencyMap.values()), 0);
+  const availableNumbers = Array.from({ length: 45 }, (_, index) => index + 1);
+  const selectedNumbers: number[] = [];
+
+  while (selectedNumbers.length < 5 && availableNumbers.length > 0) {
+    const weights = availableNumbers.map((number) => {
+      const frequency = frequencyMap.get(number) ?? 0;
+
+      if (algorithmWeight === "most_frequent") {
+        return frequency + 1;
+      }
+
+      return maxFrequency - frequency + 1;
+    });
+
+    const selected = pickWeightedNumber(availableNumbers, weights);
+    selectedNumbers.push(selected);
+
+    const removeIndex = availableNumbers.indexOf(selected);
+    if (removeIndex >= 0) {
+      availableNumbers.splice(removeIndex, 1);
+    }
+  }
+
+  return selectedNumbers.sort((a, b) => a - b);
 }
 
 export async function POST(request: Request) {
@@ -115,6 +201,72 @@ export async function POST(request: Request) {
     const { nowIso, monthStartIso, nextMonthStartIso } =
       getCurrentMonthRangeUtc();
 
+    let drawMode: "random" | "algorithm" = "random";
+    let algorithmWeight: AlgorithmWeight = "most_frequent";
+    let randomSelectionMode: RandomSelectionMode = "automated";
+    let manualNumbers: number[] | null = null;
+    try {
+      const body = (await request.json()) as SimulateDrawBody;
+      const requestedMode =
+        typeof body.draw_mode === "string"
+          ? body.draw_mode.trim().toLowerCase()
+          : "";
+      const requestedWeight =
+        typeof body.algorithm_weight === "string"
+          ? body.algorithm_weight.trim().toLowerCase()
+          : "";
+      const requestedRandomSelectionMode =
+        typeof body.random_selection_mode === "string"
+          ? body.random_selection_mode.trim().toLowerCase()
+          : "";
+
+      if (requestedMode === "algorithm" || requestedMode === "random") {
+        drawMode = requestedMode;
+      }
+
+      if (
+        requestedWeight === "most_frequent" ||
+        requestedWeight === "least_frequent"
+      ) {
+        algorithmWeight = requestedWeight;
+      }
+
+      if (
+        requestedRandomSelectionMode === "automated" ||
+        requestedRandomSelectionMode === "manual"
+      ) {
+        randomSelectionMode = requestedRandomSelectionMode;
+      }
+
+      if (Array.isArray(body.manual_numbers)) {
+        const parsed = body.manual_numbers
+          .map((value) => Number(value))
+          .filter((value) => Number.isInteger(value));
+
+        manualNumbers = parsed;
+      }
+    } catch {
+      // Empty body is acceptable; default mode remains random.
+    }
+
+    if (drawMode === "random" && randomSelectionMode === "manual") {
+      if (!manualNumbers || manualNumbers.length !== 5) {
+        return jsonError(
+          "Manual random selection requires exactly 5 numbers.",
+          400,
+        );
+      }
+
+      if (manualNumbers.some((value) => value < 1 || value > 45)) {
+        return jsonError("Manual numbers must be between 1 and 45.", 400);
+      }
+
+      const unique = new Set(manualNumbers);
+      if (unique.size !== 5) {
+        return jsonError("Manual numbers must be unique.", 400);
+      }
+    }
+
     const { data: existingSimulatedDraws, error: drawLookupError } =
       await serviceDb
         .from("draws")
@@ -163,9 +315,6 @@ export async function POST(request: Request) {
       }
     }
 
-    const winningNumbers = generateUniqueDrawNumbers(5, 1, 45);
-    const winningSet = new Set(winningNumbers);
-
     const { data: activeSubscriptions, error: activeSubsError } =
       await serviceDb
         .from("subscriptions")
@@ -206,17 +355,26 @@ export async function POST(request: Request) {
       Number(settingsRow?.current_jackpot_rollover ?? 0),
     );
 
-    const monthlySubscriptionPrice = 10;
-    const prizePoolPercent = 0.5;
-
-    const totalPool = toMoney(
-      activeUserIds.length * monthlySubscriptionPrice * prizePoolPercent +
-        currentRollover,
+    // Only a fixed portion of active subscription revenue funds this month's base pool.
+    const basePoolFromActiveSubscribers = toMoney(
+      activeUserIds.length *
+        MONTHLY_SUBSCRIPTION_PRICE *
+        PRIZE_POOL_CONTRIBUTION_PORTION,
     );
 
-    const tierPool5 = toMoney(totalPool * 0.4);
-    const tierPool4 = toMoney(totalPool * 0.35);
-    const tierPool3 = toMoney(totalPool * 0.25);
+    // Pre-defined tier shares are applied to this month's base pool.
+    // Existing rollover is jackpot-only and stays in 5-match tier.
+    const tierPool5 = toMoney(
+      basePoolFromActiveSubscribers * POOL_SHARE_MATCH_5 + currentRollover,
+    );
+    const tierPool4 = toMoney(
+      basePoolFromActiveSubscribers * POOL_SHARE_MATCH_4,
+    );
+    const tierPool3 = toMoney(
+      basePoolFromActiveSubscribers * POOL_SHARE_MATCH_3,
+    );
+
+    const totalPool = toMoney(tierPool5 + tierPool4 + tierPool3);
 
     const winnersByTier: Record<WinnerTier, string[]> = {
       3: [],
@@ -224,8 +382,10 @@ export async function POST(request: Request) {
       5: [],
     };
 
+    let scoreRows: ScoreRow[] = [];
+
     if (activeUserIds.length > 0) {
-      const { data: scoreRows, error: scoreError } = await serviceDb
+      const { data, error: scoreError } = await serviceDb
         .from("scores")
         .select("user_id, score, date_played, created_at")
         .in("user_id", activeUserIds)
@@ -237,8 +397,20 @@ export async function POST(request: Request) {
         return jsonError("Failed to fetch scores.", 500, scoreError.message);
       }
 
+      scoreRows = (data ?? []) as ScoreRow[];
+    }
+
+    const winningNumbers =
+      drawMode === "algorithm"
+        ? generateAlgorithmBasedDrawNumbers(scoreRows, algorithmWeight)
+        : randomSelectionMode === "manual"
+          ? Array.from(new Set(manualNumbers ?? [])).sort((a, b) => a - b)
+          : generateUniqueDrawNumbers(5, 1, 45);
+    const winningSet = new Set(winningNumbers);
+
+    if (activeUserIds.length > 0) {
       const latestFiveByUser = new Map<string, ScoreRow[]>();
-      for (const row of (scoreRows ?? []) as ScoreRow[]) {
+      for (const row of scoreRows) {
         const list = latestFiveByUser.get(row.user_id) ?? [];
         if (list.length < 5) {
           list.push(row);
@@ -361,6 +533,14 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: true,
+        draw_mode: drawMode,
+        algorithm_weight: drawMode === "algorithm" ? algorithmWeight : null,
+        random_selection_mode:
+          drawMode === "random" ? randomSelectionMode : null,
+        manual_numbers:
+          drawMode === "random" && randomSelectionMode === "manual"
+            ? winningNumbers
+            : null,
         draw: insertedDraw,
         summary: {
           winning_numbers: winningNumbers,
@@ -394,6 +574,106 @@ export async function POST(request: Request) {
       error instanceof Error ? error.message : "Unknown server error.";
     return jsonError(
       "Unexpected error while simulating monthly draw.",
+      500,
+      message,
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !supabaseServiceRole) {
+      return jsonError(
+        "Supabase environment variables are not configured.",
+        500,
+        "Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
+      );
+    }
+
+    let body: DeleteSimulatedDrawBody = {};
+    try {
+      body = (await request.json()) as DeleteSimulatedDrawBody;
+    } catch {
+      return jsonError("Invalid JSON in request body.", 400);
+    }
+
+    const drawId =
+      typeof body.draw_id === "string" && body.draw_id.trim().length > 0
+        ? body.draw_id.trim()
+        : null;
+
+    if (!drawId) {
+      return jsonError("Missing required field: draw_id", 400);
+    }
+
+    const serviceDb = createClient(supabaseUrl, supabaseServiceRole, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+
+    const { data: drawRecord, error: drawLookupError } = await serviceDb
+      .from("draws")
+      .select("id, status")
+      .eq("id", drawId)
+      .maybeSingle();
+
+    if (drawLookupError) {
+      return jsonError("Failed to load draw.", 500, drawLookupError.message);
+    }
+
+    if (!drawRecord) {
+      return jsonError("Draw not found.", 404);
+    }
+
+    if (drawRecord.status !== "simulated") {
+      return jsonError("Only simulated draws can be deleted.", 400);
+    }
+
+    const { error: winnersDeleteError } = await serviceDb
+      .from("winners")
+      .delete()
+      .eq("draw_id", drawId);
+
+    if (winnersDeleteError) {
+      return jsonError(
+        "Failed to delete winners for simulated draw.",
+        500,
+        winnersDeleteError.message,
+      );
+    }
+
+    const { error: drawDeleteError } = await serviceDb
+      .from("draws")
+      .delete()
+      .eq("id", drawId)
+      .eq("status", "simulated");
+
+    if (drawDeleteError) {
+      return jsonError(
+        "Failed to delete simulated draw.",
+        500,
+        drawDeleteError.message,
+      );
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Simulated draw deleted successfully.",
+        draw_id: drawId,
+      },
+      { status: 200 },
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unknown server error.";
+    return jsonError(
+      "Unexpected error while deleting simulated draw.",
       500,
       message,
     );

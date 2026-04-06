@@ -1,3 +1,5 @@
+import CharityImage from "../../components/CharityImage";
+
 type CharityImpactCardProps = {
   charityName: string | null;
   charityDescription?: string | null;
@@ -8,8 +10,7 @@ type CharityImpactCardProps = {
   onSave: () => void;
 };
 
-const PLACEHOLDER_IMAGE =
-  "https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&w=1200&q=80";
+const PLACEHOLDER_IMAGE = "/charity.jpg";
 
 export default function CharityImpactCard({
   charityName,
@@ -28,7 +29,7 @@ export default function CharityImpactCard({
     <article className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
       <div className="grid grid-cols-1 lg:grid-cols-[40%_60%]">
         <div className="relative h-56 lg:h-full">
-          <img
+          <CharityImage
             src={charityImageUrl || PLACEHOLDER_IMAGE}
             alt={resolvedCharityName}
             className="h-full w-full object-cover"

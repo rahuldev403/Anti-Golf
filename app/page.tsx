@@ -16,6 +16,11 @@ type FeaturedCharity = {
   image_url: string | null;
 };
 
+type SignupCharityOption = {
+  id: string;
+  name: string;
+};
+
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
   show: { opacity: 1, y: 0 },
@@ -89,6 +94,11 @@ export default function Page() {
   const [featuredCharity, setFeaturedCharity] =
     useState<FeaturedCharity | null>(null);
   const [isFeaturedLoading, setIsFeaturedLoading] = useState(true);
+  const [signupCharities, setSignupCharities] = useState<SignupCharityOption[]>(
+    [],
+  );
+  const [selectedSignupCharityId, setSelectedSignupCharityId] = useState("");
+  const [signupCharityPercent, setSignupCharityPercent] = useState(10);
 
   const supabase = useMemo(() => {
     try {
@@ -119,11 +129,24 @@ export default function Page() {
       .maybeSingle();
 
     if (!profile) {
+      const metadata = (user.user_metadata ?? {}) as Record<string, unknown>;
+      const selectedCharityId =
+        typeof metadata.selected_charity_id === "string" &&
+        metadata.selected_charity_id.trim().length > 0
+          ? metadata.selected_charity_id.trim()
+          : null;
+      const rawContribution = Number(metadata.charity_percentage ?? 10);
+      const safeContribution = Number.isFinite(rawContribution)
+        ? Math.min(50, Math.max(10, Math.round(rawContribution)))
+        : 10;
+
       const { error: createProfileError } = await supabase
         .from("users")
         .insert({
           id: user.id,
           role: "user",
+          selected_charity_id: selectedCharityId,
+          charity_percentage: safeContribution,
         });
 
       if (createProfileError) {
@@ -180,6 +203,42 @@ export default function Page() {
   }, [supabase]);
 
   useEffect(() => {
+    const loadSignupCharities = async () => {
+      if (!supabase) {
+        return;
+      }
+
+      const response = await fetch("/api/public/charities", {
+        method: "GET",
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const payload = (await response.json()) as {
+        success?: boolean;
+        charities?: SignupCharityOption[];
+      };
+
+      if (!payload.success || !Array.isArray(payload.charities)) {
+        return;
+      }
+
+      const options = payload.charities.filter(
+        (charity) => Boolean(charity.id) && Boolean(charity.name),
+      );
+
+      setSignupCharities(options);
+      setSelectedSignupCharityId(
+        (previous) => previous || options[0]?.id || "",
+      );
+    };
+
+    void loadSignupCharities();
+  }, [supabase]);
+
+  useEffect(() => {
     if (!isAuthModalOpen) {
       return;
     }
@@ -219,6 +278,9 @@ export default function Page() {
   const openAuthModal = () => {
     setAuthError(null);
     setMode("signup");
+    if (!selectedSignupCharityId && signupCharities.length > 0) {
+      setSelectedSignupCharityId(signupCharities[0].id);
+    }
     setIsAuthModalOpen(true);
   };
 
@@ -252,6 +314,22 @@ export default function Page() {
       return;
     }
 
+    if (mode === "signup") {
+      if (!selectedSignupCharityId) {
+        const message = "Please select a charity for your contribution.";
+        setAuthError(message);
+        toast.error(message);
+        return;
+      }
+
+      if (!Number.isFinite(signupCharityPercent) || signupCharityPercent < 10) {
+        const message = "Contribution must be at least 10%.";
+        setAuthError(message);
+        toast.error(message);
+        return;
+      }
+    }
+
     try {
       setAuthLoading(true);
 
@@ -265,6 +343,13 @@ export default function Page() {
           password,
           options: {
             emailRedirectTo,
+            data: {
+              selected_charity_id: selectedSignupCharityId,
+              charity_percentage: Math.min(
+                50,
+                Math.max(10, signupCharityPercent),
+              ),
+            },
           },
         });
 
@@ -310,9 +395,9 @@ export default function Page() {
   return (
     <main className="relative min-h-screen overflow-x-clip bg-background text-foreground">
       <div className="absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute left-1/2 top-[-20rem] h-[42rem] w-[42rem] -translate-x-1/2 rounded-full bg-primary/20 blur-3xl" />
-        <div className="absolute right-[-12rem] top-1/3 h-[30rem] w-[30rem] rounded-full bg-chart-3/15 blur-3xl" />
-        <div className="absolute left-[-16rem] bottom-[-8rem] h-[26rem] w-[26rem] rounded-full bg-accent/20 blur-3xl" />
+        <div className="absolute left-1/2 -top-80 h-168 w-2xl -translate-x-1/2 rounded-full bg-primary/20 blur-3xl" />
+        <div className="absolute -right-48 top-1/3 h-120 w-120 rounded-full bg-chart-3/15 blur-3xl" />
+        <div className="absolute -left-64 -bottom-32 h-104 w-104 rounded-full bg-accent/20 blur-3xl" />
       </div>
 
       <section className="relative w-full overflow-hidden">
@@ -329,7 +414,7 @@ export default function Page() {
             width={2200}
             height={1300}
             priority
-            className={`h-[70vh] min-h-[520px] w-full object-cover ${heroSlides[activeSlide].objectPosition}`}
+            className={`h-[70vh] min-h-130 w-full object-cover ${heroSlides[activeSlide].objectPosition}`}
           />
         </motion.div>
 
@@ -416,7 +501,7 @@ export default function Page() {
                 className="relative h-88 lg:h-full lg:min-h-120"
               >
                 <Image
-                  src="https://images.unsplash.com/photo-1559027615-cd4628902d4a?w=1200&h=800&fit=crop"
+                  src="/charity1.jpg"
                   alt="Featured charity supporting real-world impact"
                   fill
                   sizes="(max-width: 1024px) 100vw, 50vw"
@@ -492,35 +577,6 @@ export default function Page() {
           </div>
         </motion.section>
       ) : null}
-
-      <motion.section
-        initial={{ opacity: 0, y: 24 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-        viewport={{ once: true, amount: 0.3 }}
-        className="mx-auto w-full max-w-7xl px-6 py-12 md:px-10"
-      >
-        <div className="rounded-2xl border border-accent/40 bg-gradient-to-r from-accent/10 to-primary/5 p-6 shadow-sm">
-          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">
-                Explore Our Impact Partners
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Browse verified charities and discover the causes aligned with
-                your values.
-              </p>
-            </div>
-            <Link
-              href="/charities"
-              className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition hover:brightness-110"
-            >
-              Browse Charities
-              <span>→</span>
-            </Link>
-          </div>
-        </div>
-      </motion.section>
 
       <section className="mx-auto w-full max-w-7xl px-6 py-16 md:px-10 lg:py-20">
         <motion.div
@@ -690,6 +746,53 @@ export default function Page() {
                   </button>
                 </div>
               </label>
+
+              {mode === "signup" ? (
+                <>
+                  <label className="block">
+                    <span className="mb-1 block text-sm text-muted-foreground">
+                      Select Charity Beneficiary
+                    </span>
+                    <select
+                      value={selectedSignupCharityId}
+                      onChange={(event) =>
+                        setSelectedSignupCharityId(event.target.value)
+                      }
+                      required
+                      className="w-full rounded-xl border border-input bg-background/80 px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/20"
+                    >
+                      {signupCharities.length === 0 ? (
+                        <option value="">No charities available</option>
+                      ) : null}
+                      {signupCharities.map((charity) => (
+                        <option key={charity.id} value={charity.id}>
+                          {charity.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-1 block text-sm text-muted-foreground">
+                      Charity Contribution: {signupCharityPercent}%
+                    </span>
+                    <input
+                      type="range"
+                      min={10}
+                      max={50}
+                      step={1}
+                      value={signupCharityPercent}
+                      onChange={(event) =>
+                        setSignupCharityPercent(Number(event.target.value))
+                      }
+                      className="h-2 w-full cursor-pointer appearance-none rounded-full bg-muted accent-primary"
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Minimum 10%. Increase this any time from your dashboard.
+                    </p>
+                  </label>
+                </>
+              ) : null}
 
               <button
                 type="submit"
